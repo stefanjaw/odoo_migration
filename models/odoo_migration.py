@@ -16,18 +16,6 @@ class OdooMigration(models.Model):
     _description = 'odoo_migration.odoo_migration'
 
     def get_loging_id(self, url, db, user, pwd):
-        try:
-            pwd = base64.b64decode(pwd).decode('utf-8')
-        except:
-            _logging.info("  Error: Password format incorrect")
-            return False
-        
-        try:
-            url = url + "/jsonrpc"
-        except:
-            _logging.info("  Error: URL format incorrect")
-            return False
-
         header = { 'Content-Type': 'application/json', }
         
         payload1 = {
@@ -47,24 +35,11 @@ class OdooMigration(models.Model):
             headers = header,
         )
         try:
-            response_json = response.json()
-            return response_json
+            return response.json()
         except:
             return False
     
     def get_records_id(self, url, db, login_id, pwd, model, search_filter):
-        try:
-            pwd = base64.b64decode(pwd).decode('utf-8')
-        except:
-            _logging.info("  Error: Password format incorrect")
-            return False
-        
-        try:
-            url = url + "/jsonrpc"
-        except:
-            _logging.info("  Error: URL format incorrect")
-            return False
-
         header = { 'Content-Type': 'application/json', }
         
         payload1 = {
@@ -85,15 +60,12 @@ class OdooMigration(models.Model):
             'id': random.randint(0, 1000000000),
         }
         
-        _logging.info("    payload1: %s", payload1)
-        
         response = requests.post(
             url,
             data= json.dumps(payload1).encode().decode('utf-8'),
             headers = header,
         )
         try:
-            response_json = response.json()
-            return response_json
+            return response.json()
         except:
             return False
