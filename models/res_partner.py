@@ -12,10 +12,35 @@ class ResPartnerInheritMigration(models.Model):
 
     def migrate(self, data):
         _logging.info("DEF_14 migrate")
-        _logging.info("DEF_12_migrate self: %s data: %s", self, data)
-        #OdooMigration.post_to_odoo(self, data)
-        pass
+
+        login_data = OdooMigration.get_loging_id(self,
+            data.get('url'), data.get('db'), data.get('usr'), data.get('pwd'),
+        )
+        _logging.info("  login_data: %s", login_data)
+        if login_data == False:
+            _logging.info("ERROR: Login")
+
+        login_id = login_data.get('result')
+
+        _logging.info("  DEF25")
+        search_filter = data.get('search_filter')
+        if not search_filter:
+            search_filter = []
         
+        response = OdooMigration.get_records_id(
+            # url, db, login_id, pwd, model, search_filter
+            self, data.get('url'), data.get('db'), login_id, data.get('pwd'),\
+            self._name, search_filter,
+        )
+        
+        _logging.info("  get_records_id: %s", response)
+        
+        return
+        
+        
+        
+        
+
 #     name = fields.Char()
 #     value = fields.Integer()
 #     value2 = fields.Float(compute="_value_pc", store=True)
