@@ -11,10 +11,11 @@ class ResPartnerInheritMigration(models.Model):
     _inherit = 'res.partner'
 
     def migrate(self, data):
+        _logging.info("DEF_14 migrate")
         _logging.info("DEF_12_migrate self: %s data: %s", self, data)
-        OdooMigration.post_to_odoo(self, data)
-        STOP10
-
+        #OdooMigration.post_to_odoo(self, data)
+        pass
+        
 #     name = fields.Char()
 #     value = fields.Integer()
 #     value2 = fields.Float(compute="_value_pc", store=True)
