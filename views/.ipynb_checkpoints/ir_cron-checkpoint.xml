@@ -13,7 +13,9 @@
           'db': 'remote_server_database',
           'usr':'remote_server_username',
           'pwd': 'remote_server_password_b64encoded'}),
-          'search_filter': [ ],
+          'search_filter': [ ], #Ex: [['id','in',[51883, 51884, 208028 ] ]],
+          'remote_vars': [ ], #Ex: ['id','name'],
+          'local_vars': [ ], #Ex: ['id','name','phone'],
       </field>
       <field name="interval_number">10</field>
       <field name="interval_type">minutes</field>
