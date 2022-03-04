@@ -30,16 +30,20 @@ class OdooMigration(models.Model):
             )
         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError):
             msg = ('The url that this service requested returned an error. The url it tried to contact was %s', url)
-            _logging.info("Error: %s", msg)
+            _logging.info("  33Error: %s", msg)
             return  msg
         #_logging.info("35=== %s", response.get("error"))
         if 'error' in response.json():
+            _logging.info("  37Error:")
             message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response.json()['error']['message'])
             if response.json()['error']['code'] == 404:
+                _logging.info("  40Error:")
                 message = _('The url that this service does not exist. The url it tried to contact was %s', url)
-            return message
-        _logging.info("  41Response: %s", response)
-        _logging.info("  42Response: %s", response.text)
+            #return message
+            return json.dumps(response.json()['error'])
+        
+        _logging.info("  41Response: %s", str(response)[0:100])
+        _logging.info("  42Response: %s", str(response.text)[0:100])
         
         try:
             return response.json()['result']
@@ -54,6 +58,10 @@ class OdooMigration(models.Model):
     
     def json_str(self, string):
         return json.dumps(string)
+    
+    def console_log(self,string):
+        _logging.info( string  )
+        return
     
     def get_records_id(self, url, db, login_id, pwd, model, search_filter):
         _logging.info("    DEF43")
