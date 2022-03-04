@@ -18,6 +18,46 @@ class ResPartnerInheritMigration(models.Model):
     def migrate(self, data):
         _logging.info("DEF_19 migrate")
 
+        try:
+            pwd = base64.b64decode( data.get('pwd') ).decode('utf-8')
+        except:
+            _logging.info("  Error: Password format incorrect")
+            return False
+        
+        try:
+            url = data.get('url') + "/jsonrpc"
+        except:
+            _logging.info("  Error: URL format incorrect")
+            return False
+        
+        #Login DATA
+        login_data = OdooMigration.get_loging_id(self,
+            url, data.get('db'), data.get('usr'), pwd,
+        )
+        if login_data == False:
+            _logging.info("ERROR: Login")
+            return
+
+        login_id = login_data.get('result')
+        STOP42
+        '''
+        login_data = OdooMigration.get_loging_id(self,
+                    url, data.get('db'), data.get('usr'), pwd,
+                )
+        '''             
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         #payment_model = self.env['account.payment']
         #PROBAR LLAMANDO MANUALMENTE EL action_validate_invoice_payment con el SELF
         
