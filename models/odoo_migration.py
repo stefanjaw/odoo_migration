@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import models, fields, api, _
 
 import json
 import random
@@ -32,15 +32,19 @@ class OdooMigration(models.Model):
             msg = ('The url that this service requested returned an error. The url it tried to contact was %s', url)
             _logging.info("Error: %s", msg)
             return  msg
-
-        if 'error' in response:
-            message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response['error']['message'])
-            if response['error']['code'] == 404:
+        #_logging.info("35=== %s", response.get("error"))
+        if 'error' in response.json():
+            message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response.json()['error']['message'])
+            if response.json()['error']['code'] == 404:
                 message = _('The url that this service does not exist. The url it tried to contact was %s', url)
             return message
-        _logging.info("  Response: %s", response)
+        _logging.info("  41Response: %s", response)
+        _logging.info("  42Response: %s", response.text)
         
-        return response.json()['result']
+        try:
+            return response.json()['result']
+        except:
+            return response.json()
 
     def b64decode(self, string):
         return base64.b64decode(string)
@@ -50,38 +54,6 @@ class OdooMigration(models.Model):
     
     def json_str(self, string):
         return json.dumps(string)
-    
-    def get_loging_id(self, url, db, user, pwd):
-        header = {'content-type': 'application/json'}
-
-        payload1 = {
-            "jsonrpc": "2.0",
-            "method": "call",
-            "params": {
-                "service": "common",
-                "method": "login",
-                #'args': "[{0},{1},{2}]".format(db, user, pwd),
-                "args": [db, user, pwd],
-            },
-            "id": random.randint(0, 1000000000),
-        }
-        _logging.info("DEF88 payload1: %s", payload1)
-        data = json.dumps(payload1).encode().decode('utf-8')
-        _logging.info("DEF90 ")
-        response = requests.post(
-            url,
-            data = data,
-            headers = header,
-        )
-        _logging.info("DEF98 response: %s",  response)
-        _logging.info("DEF98 response: %s",  response.text )
-
-        try:
-            _logging.info("DEF100 response: %s", response.json() )
-            
-            return response.json()
-        except:
-            return False
     
     def get_records_id(self, url, db, login_id, pwd, model, search_filter):
         _logging.info("    DEF43")
