@@ -43,7 +43,7 @@ class OdooMigration(models.Model):
             return json.dumps(response.json()['error'])
         
         _logging.info("  41Response: %s", str(response)[0:100])
-        _logging.info("  42Response: %s", str(response.text)[0:100])
+        _logging.info("  42Response: \n  %s", str(response.text)[0:200])
         
         try:
             return response.json()['result']
@@ -63,6 +63,7 @@ class OdooMigration(models.Model):
         _logging.info( string  )
         return
     
+   
     def get_records_id(self, url, db, login_id, pwd, model, search_filter):
         _logging.info("    DEF43")
         header = { 'Content-Type': 'application/json', }
