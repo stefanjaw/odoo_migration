@@ -9,6 +9,7 @@ from odoo.http import request
 import requests
 
 import uuid
+import datetime  #For timestamp
 
 import logging
 _logging = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class OdooMigration(models.Model):
             )
         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError):
             msg = ('The url that this service requested returned an error. The url it tried to contact was %s', url)
-            _logging.info("  33Error: %s", msg)
+            _logging.info("  DEF33 Error: %s", msg)
             return  msg
         #_logging.info("35=== %s", response.get("error"))
         if 'error' in response.json():
@@ -42,8 +43,8 @@ class OdooMigration(models.Model):
             #return message
             return json.dumps(response.json()['error'])
         
-        _logging.info("  41Response: %s", str(response)[0:100])
-        _logging.info("  42Response: \n  %s", str(response.text)[0:200])
+        _logging.info("  41Response: %s", str(response)[0:300])
+        _logging.info("  42Response: \n  %s", str(response.text)[0:300])
         
         try:
             return response.json()['result']
@@ -62,8 +63,19 @@ class OdooMigration(models.Model):
     def console_log(self,string):
         _logging.info( string  )
         return
+
+    def get_timestamp(self):
+         return int( datetime.datetime.now().timestamp() )
     
-   
+    def test(self):
+        result = self.env['res.partner'].load(
+            ['id','name'],
+            [['__export__.testsdfsdf123213', 'testing abcdef']]
+        )
+        _logging.info("==> {0}".format(result))
+        STOP72
+    
+    
     def get_records_id(self, url, db, login_id, pwd, model, search_filter):
         _logging.info("    DEF43")
         header = { 'Content-Type': 'application/json', }
@@ -101,7 +113,7 @@ class OdooMigration(models.Model):
             return records_lst
         except:
             return False
-        
+
     def export_data(self, url, db, login_id, pwd, model, ids, vars1):
         _logging.info("    DEF81")
         header = { 'Content-Type': 'application/json', }
