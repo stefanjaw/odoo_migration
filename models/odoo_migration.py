@@ -57,13 +57,12 @@ class OdooMigration(models.Model):
             #return message
             return json.dumps(response.json()['error'])
         
-        _logging.info("  41Response: %s", str(response)[0:300])
-        _logging.info("  42Response: \n  %s", str(response.text)[0:300])
-        
         try:
-            return response.json()['result']
+            output = response.json()['result']
         except:
-            return response.json()
+            output =  response.json()
+        _logging.info(f"  DEF67 result: \n{str(output)[0:300]}")
+        return output
 
     def b64decode(self, string):
         return base64.b64decode(string)
@@ -205,3 +204,152 @@ class OdooMigration(models.Model):
                 "id": self.random_int(),
         }
         return self._make_request( url, payload1 )
+
+    def load_records_data(self, load_model, load_vars, load_data  ):
+        #_logging("DEF95 Loading Records Qty: {0}".format( len(load_data) )  )
+        #_logging( "  DEF95 LOAD RECORDS DATA: {0}".format(  load_data)[0:300] )
+        result_dict = {'ids': [], 'errors': [] }
+                                                                                            # QUITAAAAAR
+        for record_data in load_data:
+            #_logging( "  DEF98 record_data: {0}".format(  record_data[0]  )  )
+
+            record_id = self.env.ref( record_data[0], raise_if_not_found=False   )
+            #_logging("DEF102 Record_id Existente: {0}".format(record_id  ))
+            record_new = False
+            if record_id == None:
+                #_logging("DEF104 Creando record temporal")
+                record_new = True
+                result = self.env[ load_model  ].sudo().load(    #!!! BUG: Se tiene que crear previo como company
+                            ['id',  'name', 'company_type'],                    #Es un error de Odoo que por default lo pone como person
+                            [[ record_data[0], 'NombreTemporal',  'company']],
+                        )
+                #_logging( "  DEF112 result temporal name: {0}".format(  result  )  )
+                record_id_int = result.get('ids')                                       #GET TEMPO RECORD IDs
+                record_id = self.env[ load_model  ].sudo().browse( record_id_int )
+            else:
+                pass
+    
+            result = record_id.sudo().load(
+                        load_vars,
+                        [ record_data ],
+                    )
+            #_logging( "  DEF113 result DEBE SER EL MISMO RECORD ID: {0}".format(  result  )  )
+    
+
+            if result.get('ids') == False:    #Errors Condition
+                msg = "  DEF123 Error: Result: {0}\n\nvars: {1}\nData {2}".format(result, local_vars, record_data)
+                result_dict['errors'].append( [ msg ]  )
+                #_logging( msg )
+                #_logging( "  DEF126 Eliminando registro temporal: {0}".format(  record_id  )  )
+                if record_new == True:
+                    record_id.sudo().unlink()
+            elif result.get('ids') != False:  #OK Condition
+                result_dict['ids'].append( result.get('ids')[0]  )
+        #_logging( "  DEF128 result_dict: {0}".format(result_dict)[0:200] )
+  
+        return result_dict
+
+    def get_data_to_load(self, data_array, local_vars, max_records_to_load  ):                    # Create Record external_id if it's not found locally
+        #_logging("  DEF90 get_data_to_load " )
+
+        records_data_to_load = []
+        for remote_record_data in data_array:               
+            #_logging("DEF91: ")
+
+            if len( records_data_to_load  ) >= max_records_to_load:
+                break
+
+            local_external_id = remote_external_id = remote_record_data[0]
+
+            try:
+                local_record_id = self.env.ref( remote_external_id, raise_if_not_found=False  ).sudo()  #SUDO
+            except:
+                local_record_id = self.env.ref( remote_external_id, raise_if_not_found=False  )
+            #_logging("DEF98=====")
+
+            #_logging("  DEF103 remote_record_data: {0}".format(remote_record_data))
+            if local_record_id in [None, False]:
+                #_logging("  DEF105")
+      
+                records_data_to_load.append( remote_record_data  )
+                continue
+
+            #_logging("DEF107=====")
+
+            local_record_data = local_record_id.sudo().export_data( local_vars ).get('datas')[0]
+            #_logging( "DEF110 local_record_data: {0}".format(local_record_data) )
+    
+            for index_var, local_var_name in enumerate( local_vars ):            # BUSQUEDA DE CADA VAR
+                remote_value = remote_record_data[ index_var  ]
+                local_value = local_record_data[ index_var  ]
+                #_logging( "Local Var: {2}\nremote_value: {0}\nlocal_value:  {1} ".format(remote_value, local_value, local_var_name)  )    #Comparando el valor de cada variable
+                if remote_value == local_value:
+                    continue
+                elif remote_value == False and local_value == "":
+                    continue
+                elif local_var_name == "email" and remote_value in ["", False]:   #No toma en cuenta si el email viene vacío
+                    #_logging("  DEF138 remote Email is empty for the record: {0}".format( remote_record_data ) )
+                    continue
+                elif local_var_name == "email" and local_value.replace(" ", "") == remote_value.replace(" ", ""): #Emails con espacios no los considera
+                    continue
+      
+                #_logging( "  DEF140 Registros Diferentes para VAR: {4}\nremote value: {0}\nlocal_value: {1}\nremote_record_data: {2}\nlocal_record_data:  {3}".format(
+                #    remote_value, local_value, remote_record_data, local_record_data, local_var_name )[0:2000]
+                #)
+
+                records_data_to_load.append(  remote_record_data  )
+                break
+                #raise UserError(  "115 Diferentes Valores\nRemote value: {0}\n  Local value: {1}".format( remote_value, local_value )  )
+        
+        #_logging( "DEF152 records_data_to_load: {0}".format( records_data_to_load ))
+        return records_data_to_load
+
+
+    def remove_messages_from_records( load_model, records_id ):
+        STOP310
+        records_id = env['mail.message'].search([
+                        ('res_id','in', records_id),
+                        ('model', '=', load_model)
+                    ])
+        #_logging( "  DEF162 messages records_id: {0}".format( records_id )  )
+        return records_id.sudo().unlink()
+
+    def value_format_change( self, records_to_load, local_vars  ):           #Validation: Remove Value False or Bool before LOAD Data 
+        for index_record, record in enumerate(records_to_load):
+            #_logging( "  DEF169 Record: {0}".format( records_to_load[ index_record  ] )  )
+    
+            for index_var, var_name in enumerate( local_vars  ):
+      
+                if records_to_load[ index_record  ][ index_var ] == False:      #Bool to String
+                    records_to_load[ index_record  ][ index_var ] = "False"
+                elif records_to_load[ index_record  ][ index_var ] == True:     #Bool to String
+                    records_to_load[ index_record  ][ index_var ] = "True"
+
+                #Special Changes
+                if var_name == "category_id/id" and records_to_load[ index_record  ][ index_var ] in [False, "False"]:
+                    records_to_load[ index_record  ][ index_var ] = ""
+
+                if var_name == "credit_limit" and records_to_load[ index_record  ][ index_var ] in [False, "False"]:
+                    records_to_load[ index_record  ][ index_var ] = ""
+
+                if var_name == "email" and records_to_load[ index_record  ][ index_var ] not in [False, "False", ""]: #Replace empty Spaces in Email
+                    #  #_logging( "  DEF183 EMAIL: {0}".format(  records_to_load[ index_record  ][ index_var ]  )  )
+                    records_to_load[ index_record  ][ index_var ] = records_to_load[ index_record  ][ index_var ].replace( " ", ""  )
+      
+      
+                #Si no tiene email se le coloca uno default ( Se utiliza solo cuando es individual )
+                #if var_name == "email" and records_to_load[ index_record  ][ index_var ] in [False, "False", ""]:
+                #  #_logging( "  DEF183 EMAIL: {0}".format(  records_to_load[ index_record  ][ index_var ]  )  )
+                #  records_to_load[ index_record  ][ index_var ] = str( self.get_timestamp()  ) + default_no_email
+  
+                #Comentado, si el nombre tiene numeros revisar si es una compania
+                #y no una persona en la configuracion del registro
+                #if var_name == "name":          #Check if it has numbers
+                #  _logging( "  DEF189 name: {0}".format(  records_to_load[ index_record  ][ index_var ]  )  )
+
+  
+                #_logging( "  DEF182 Record2: {0}".format( records_to_load[ index_record  ] )  )
+  
+        return records_to_load
+
+
