@@ -18,6 +18,20 @@ class OdooMigration(models.Model):
     _name = 'odoo_migration'
     _description = 'odoo_migration.odoo_migration'
 
+    def get_login_id(self, url, db, user, pwd):
+        payload1 = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "common",
+                "method": "login",
+                "args": [db, user, pwd],
+            },
+            "id": self.random_int(),
+        }
+        #result = self._make_request( url, payload1 )
+        return self._make_request( url, payload1 )
+
     def _make_request(self, url, payload=False):
         ''' Make a request to proxy and handle the generic elements of the reponse (errors, new refresh token).'''
         TIMEOUT = 5
@@ -75,7 +89,7 @@ class OdooMigration(models.Model):
         _logging.info("==> {0}".format(result))
         STOP72
     
-    
+    ''' 
     def get_records_id(self, url, db, login_id, pwd, model, search_filter):
         _logging.info("    DEF43")
         header = { 'Content-Type': 'application/json', }
@@ -113,6 +127,7 @@ class OdooMigration(models.Model):
             return records_lst
         except:
             return False
+    '''
 
     def export_data(self, url, db, login_id, pwd, model, ids, vars1):
         _logging.info("    DEF81")
@@ -150,3 +165,43 @@ class OdooMigration(models.Model):
             return records_array.get('datas')
         except:
             return False
+
+    def get_records_id(self, url, db, login_id, pwd, query_model, search_filter, offset, limit, sort):
+        payload1 = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "object",
+                "method": "execute",
+                "args": [
+                    db, login_id, pwd,
+                    query_model,
+                    'search',
+                    search_filter,
+                    offset,  #Offset
+                    limit,  #limit
+                    sort,
+                ],
+            },
+            "id": self.random_int(),
+        }
+        return self._make_request( url, payload1 )
+
+    def get_records_data(self, url, db, login_id, pwd, query_model, ids_array, vars_array):
+        payload1 = {
+            "jsonrpc": "2.0",
+            "method": "call",
+                "params": {
+                    "service": "object",
+                    "method": "execute",
+                    "args": [
+                        db, login_id, pwd,
+                        query_model,
+                        'export_data',
+                        ids_array,
+                        vars_array,
+                    ],
+                },
+                "id": self.random_int(),
+        }
+        return self._make_request( url, payload1 )
