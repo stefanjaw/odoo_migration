@@ -273,24 +273,24 @@ class OdooMigration(models.Model):
                 records_data_to_load.append( remote_record_data  )
                 continue
 
-            #_logging.info("DEF277=====")
-
-            local_record_data = local_record_id.sudo().export_data( local_vars ).get('datas')[0]
+            local_record_data = local_record_id.sudo().with_context(lang='en_US').export_data( local_vars ).get('datas')[0]
 
             for x in range( len(remote_record_data) ):
                 if type( remote_record_data[x] ) == bool and remote_record_data[x] == False:
                     remote_record_data[x] = ''
-                if type( remote_record_data[x] ) == str and remote_record_data[x] != '' and remote_record_data[x][-1] == ' ':
+                elif type( remote_record_data[x] ) == str and remote_record_data[x] != '' and remote_record_data[x][-1] == ' ':
                     remote_record_data[x] = remote_record_data[x][0:-1]
 
             for x in range( len(local_record_data) ):
-                if type(local_record_data[x]) == datetime.datetime:
+                if type( local_record_data[x] ) == bool and local_record_data[x] == False:
+                    local_record_data[x] = ''
+                elif type(local_record_data[x]) == datetime.datetime:
                     local_record_data[x] = local_record_data[x].isoformat(' ')
-                if type( local_record_data[x] ) == str and local_record_data[x] != '' and local_record_data[x][-1] == ' ':
+                elif type( local_record_data[x] ) == str and local_record_data[x] != '' and local_record_data[x][-1] == ' ':
                     local_record_data[x] = local_record_data[x][0:-1]
             
             if remote_record_data == local_record_data:
-                _logging.info(f'DEF288 Iguales: { remote_record_data[0] }')
+                #_logging.info(f'DEF288 Iguales: { remote_record_data[0] }')
                 continue
             else:
                 pass
