@@ -205,7 +205,7 @@ class OdooMigration(models.Model):
         }
         return self._make_request( url, payload1 )
 
-    def load_records_data(self, load_model, load_vars, load_data  ):
+    def load_records_data(self, load_model, local_vars, load_data  ):
         #_logging("DEF95 Loading Records Qty: {0}".format( len(load_data) )  )
         #_logging( "  DEF95 LOAD RECORDS DATA: {0}".format(  load_data)[0:300] )
         result_dict = {'ids': [], 'errors': [] }
@@ -230,7 +230,7 @@ class OdooMigration(models.Model):
                 pass
     
             result = record_id.sudo().load(
-                        load_vars,
+                        local_vars,
                         [ record_data ],
                     )
             #_logging( "  DEF113 result DEBE SER EL MISMO RECORD ID: {0}".format(  result  )  )
@@ -250,12 +250,11 @@ class OdooMigration(models.Model):
         return result_dict
 
     def get_data_to_load(self, data_array, local_vars, max_records_to_load  ):                    # Create Record external_id if it's not found locally
-        #_logging("  DEF90 get_data_to_load " )
+        _logging.info("  DEF253 get_data_to_load======== " )
 
         records_data_to_load = []
         for remote_record_data in data_array:               
-            #_logging("DEF91: ")
-
+            #_logging.info(f"DEF91: remote_record_data: \n{remote_record_data}\n")
             if len( records_data_to_load  ) >= max_records_to_load:
                 break
 
@@ -265,20 +264,41 @@ class OdooMigration(models.Model):
                 local_record_id = self.env.ref( remote_external_id, raise_if_not_found=False  ).sudo()  #SUDO
             except:
                 local_record_id = self.env.ref( remote_external_id, raise_if_not_found=False  )
-            #_logging("DEF98=====")
+            #_logging.info("DEF268=====")
 
             #_logging("  DEF103 remote_record_data: {0}".format(remote_record_data))
             if local_record_id in [None, False]:
-                #_logging("  DEF105")
+                #_logging.info("  DEF272")
       
                 records_data_to_load.append( remote_record_data  )
                 continue
 
-            #_logging("DEF107=====")
+            #_logging.info("DEF277=====")
 
             local_record_data = local_record_id.sudo().export_data( local_vars ).get('datas')[0]
-            #_logging( "DEF110 local_record_data: {0}".format(local_record_data) )
-    
+
+            for x in range( len(remote_record_data) ):
+                if type( remote_record_data[x] ) == bool and remote_record_data[x] == False:
+                    remote_record_data[x] = ''
+                if type( remote_record_data[x] ) == str and remote_record_data[x] != '' and remote_record_data[x][-1] == ' ':
+                    remote_record_data[x] = remote_record_data[x][0:-1]
+
+            for x in range( len(local_record_data) ):
+                if type(local_record_data[x]) == datetime.datetime:
+                    local_record_data[x] = local_record_data[x].isoformat(' ')
+                if type( local_record_data[x] ) == str and local_record_data[x] != '' and local_record_data[x][-1] == ' ':
+                    local_record_data[x] = local_record_data[x][0:-1]
+            
+            if remote_record_data == local_record_data:
+                _logging.info(f'DEF288 Iguales: { remote_record_data[0] }')
+                continue
+            else:
+                pass
+            _logging.info(f"DEF294 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
+            records_data_to_load.append( remote_record_data  )
+            continue
+            '''
+            STOP286
             for index_var, local_var_name in enumerate( local_vars ):            # BUSQUEDA DE CADA VAR
                 remote_value = remote_record_data[ index_var  ]
                 local_value = local_record_data[ index_var  ]
@@ -300,7 +320,7 @@ class OdooMigration(models.Model):
                 records_data_to_load.append(  remote_record_data  )
                 break
                 #raise UserError(  "115 Diferentes Valores\nRemote value: {0}\n  Local value: {1}".format( remote_value, local_value )  )
-        
+            '''
         #_logging( "DEF152 records_data_to_load: {0}".format( records_data_to_load ))
         return records_data_to_load
 
