@@ -187,6 +187,8 @@ class OdooMigration(models.Model):
         return self._make_request( url, payload1 )
 
     def get_records_data(self, url, db, login_id, pwd, query_model, ids_array, vars_array):
+        # remote data: ids_array, vars_array
+
         payload1 = {
             "jsonrpc": "2.0",
             "method": "call",
@@ -209,7 +211,7 @@ class OdooMigration(models.Model):
         #_logging("DEF95 Loading Records Qty: {0}".format( len(load_data) )  )
         #_logging( "  DEF95 LOAD RECORDS DATA: {0}".format(  load_data)[0:300] )
         result_dict = {'ids': [], 'errors': [] }
-                                                                                            # QUITAAAAAR
+
         for record_data in load_data:
             #_logging( "  DEF98 record_data: {0}".format(  record_data[0]  )  )
 
@@ -220,15 +222,16 @@ class OdooMigration(models.Model):
                 #_logging("DEF104 Creando record temporal")
                 record_new = True
                 result = self.env[ load_model  ].sudo().load(    #!!! BUG: Se tiene que crear previo como company
-                            ['id',  'name', 'company_type'],                    #Es un error de Odoo que por default lo pone como person
-                            [[ record_data[0], 'NombreTemporal',  'company']],
+                            local_vars,
+                            [a[0], 'NombreTemporal',  'company']],
                         )
                 #_logging( "  DEF112 result temporal name: {0}".format(  result  )  )
                 record_id_int = result.get('ids')                                       #GET TEMPO RECORD IDs
                 record_id = self.env[ load_model  ].sudo().browse( record_id_int )
             else:
                 pass
-    
+            _logging.info(f"DEF231 recor_data: { record_data}") 
+            STOP232
             result = record_id.sudo().load(
                         local_vars,
                         [ record_data ],
@@ -249,7 +252,7 @@ class OdooMigration(models.Model):
   
         return result_dict
 
-    def get_data_to_load(self, data_array, local_vars, max_records_to_load  ):                    # Create Record external_id if it's not found locally
+    def get_data_to_load(self, data_array, local_vars, max_records_to_load  ): #1660494696
         _logging.info("  DEF253 get_data_to_load======== " )
 
         records_data_to_load = []
@@ -294,34 +297,10 @@ class OdooMigration(models.Model):
                 continue
             else:
                 pass
-            _logging.info(f"DEF294 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
+            _logging.info(f"DEF300 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
             records_data_to_load.append( remote_record_data  )
             continue
-            '''
-            STOP286
-            for index_var, local_var_name in enumerate( local_vars ):            # BUSQUEDA DE CADA VAR
-                remote_value = remote_record_data[ index_var  ]
-                local_value = local_record_data[ index_var  ]
-                #_logging( "Local Var: {2}\nremote_value: {0}\nlocal_value:  {1} ".format(remote_value, local_value, local_var_name)  )    #Comparando el valor de cada variable
-                if remote_value == local_value:
-                    continue
-                elif remote_value == False and local_value == "":
-                    continue
-                elif local_var_name == "email" and remote_value in ["", False]:   #No toma en cuenta si el email viene vacío
-                    #_logging("  DEF138 remote Email is empty for the record: {0}".format( remote_record_data ) )
-                    continue
-                elif local_var_name == "email" and local_value.replace(" ", "") == remote_value.replace(" ", ""): #Emails con espacios no los considera
-                    continue
-      
-                #_logging( "  DEF140 Registros Diferentes para VAR: {4}\nremote value: {0}\nlocal_value: {1}\nremote_record_data: {2}\nlocal_record_data:  {3}".format(
-                #    remote_value, local_value, remote_record_data, local_record_data, local_var_name )[0:2000]
-                #)
-
-                records_data_to_load.append(  remote_record_data  )
-                break
-                #raise UserError(  "115 Diferentes Valores\nRemote value: {0}\n  Local value: {1}".format( remote_value, local_value )  )
-            '''
-        #_logging( "DEF152 records_data_to_load: {0}".format( records_data_to_load ))
+        _logging( f"DEF303 Registros Nuevos o Diferentes: {0}".format( len(records_data_to_load) ))
         return records_data_to_load
 
 
