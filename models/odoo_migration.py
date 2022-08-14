@@ -51,11 +51,12 @@ class OdooMigration(models.Model):
             return  msg
         #_logging.info("35=== %s", response.get("error"))
         if 'error' in response.json():
-            _logging.info("  37Error:")
+            _logging.info(f"  DEF54 Error: {response.json()}")
             message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response.json()['error']['message'])
             if response.json()['error']['code'] == 404:
-                _logging.info("  40Error:")
+                _logging.info("  DEF40 Error:")
                 message = _('The url that this service does not exist. The url it tried to contact was %s', url)
+
             #return message
             return json.dumps(response.json()['error'])
         
@@ -264,6 +265,8 @@ class OdooMigration(models.Model):
                     local_record_data[x] = ''
                 elif type(local_record_data[x]) == datetime.datetime:
                     local_record_data[x] = local_record_data[x].isoformat(' ')
+                elif type(local_record_data[x]) == datetime.date:
+                    local_record_data[x] = local_record_data[x].isoformat()
                 elif type( local_record_data[x] ) == str and local_record_data[x] != '' and local_record_data[x][-1] == ' ':
                     local_record_data[x] = local_record_data[x][0:-1]
             
@@ -272,7 +275,8 @@ class OdooMigration(models.Model):
                 continue
             else:
                 pass
-            _logging.info(f"DEF316 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
+            _logging.info(f"DEF276 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
+            STOP277
             records_data_to_load.append( remote_record_data  )
             continue
         _logging.info( f"Registros Nuevos o Diferentes: {len(records_data_to_load)}\n===========")
