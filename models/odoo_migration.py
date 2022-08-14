@@ -19,6 +19,7 @@ class OdooMigration(models.Model):
     _description = 'odoo_migration.odoo_migration'
 
     def get_login_id(self, url, db, user, pwd):
+        _logging.info("get_login =======")
         payload1 = {
             "jsonrpc": "2.0",
             "method": "call",
@@ -33,6 +34,7 @@ class OdooMigration(models.Model):
         return self._make_request( url, payload1 )
 
     def _make_request(self, url, payload=False):
+        #_logging.info("  _make_request TO REMOTE SERVER")
         ''' Make a request to proxy and handle the generic elements of the reponse (errors, new refresh token).'''
         TIMEOUT = 5
         
@@ -61,7 +63,7 @@ class OdooMigration(models.Model):
             output = response.json()['result']
         except:
             output =  response.json()
-        _logging.info(f"  DEF67 result: \n{str(output)[0:300]}")
+        #_logging.info(f"  DEF67 result: \n{str(output)[0:300]}")
         return output
 
     def b64decode(self, string):
@@ -166,6 +168,7 @@ class OdooMigration(models.Model):
             return False
 
     def get_records_id(self, url, db, login_id, pwd, query_model, search_filter, offset, limit, sort):
+        _logging.info("get_records_id=================")
         payload1 = {
             "jsonrpc": "2.0",
             "method": "call",
@@ -187,6 +190,7 @@ class OdooMigration(models.Model):
         return self._make_request( url, payload1 )
 
     def get_records_data(self, url, db, login_id, pwd, query_model, ids_array, vars_array):
+        _logging.info("get_records_data=======")
         # remote data: ids_array, vars_array
 
         payload1 = {
@@ -208,10 +212,26 @@ class OdooMigration(models.Model):
         return self._make_request( url, payload1 )
 
     def load_records_data(self, load_model, local_vars, load_data  ):
-        #_logging("DEF95 Loading Records Qty: {0}".format( len(load_data) )  )
-        #_logging( "  DEF95 LOAD RECORDS DATA: {0}".format(  load_data)[0:300] )
+        _logging.info("load_records_data ==== Qty: {0}".format( len(load_data) )  )
+        _logging.info( "    DEF216 DATA: {0}".format(  load_data)[0:300] )
         result_dict = {'ids': [], 'errors': [] }
+        result = self.env[ load_model  ].sudo().load(    #!!! BUG: Se tiene que crear previo como company
+                    local_vars,
+                    load_data
+                )
+        _logging.info( f"DEF223 result: {result}")
 
+        if result.get('ids') == False:    #Errors Condition
+            msg = "  DEF221 Error: Result: {0}\n\nvars: {1}\nData {2}".format(result, local_vars, load_data)
+            result_dict['errors'].append( [ msg ]  )
+            _logging.info( f"DEF223 Error Result: {msg[0:200]}" )
+            #_logging( "  DEF126 Eliminando registro temporal: {0}".format(  record_id  )  )
+        elif result.get('ids') != False:  #OK Condition
+            result_dict['ids'].append( result.get('ids')[0]  )
+
+        #_logging( "  DEF228 result_dict: {0}".format(result_dict)[0:200] )
+
+        '''
         for record_data in load_data:
             #_logging( "  DEF98 record_data: {0}".format(  record_data[0]  )  )
 
@@ -249,15 +269,14 @@ class OdooMigration(models.Model):
             elif result.get('ids') != False:  #OK Condition
                 result_dict['ids'].append( result.get('ids')[0]  )
         #_logging( "  DEF128 result_dict: {0}".format(result_dict)[0:200] )
-  
+        '''
         return result_dict
 
     def get_data_to_load(self, data_array, local_vars, max_records_to_load  ): #1660494696
-        _logging.info("  DEF253 get_data_to_load======== " )
+        _logging.info(f"get_data_to_load======== { len(data_array) }" )
 
         records_data_to_load = []
         for remote_record_data in data_array:               
-            #_logging.info(f"DEF91: remote_record_data: \n{remote_record_data}\n")
             if len( records_data_to_load  ) >= max_records_to_load:
                 break
 
@@ -271,13 +290,10 @@ class OdooMigration(models.Model):
 
             #_logging("  DEF103 remote_record_data: {0}".format(remote_record_data))
             if local_record_id in [None, False]:
-                #_logging.info("  DEF272")
-      
                 records_data_to_load.append( remote_record_data  )
                 continue
 
             local_record_data = local_record_id.sudo().with_context(lang='en_US').export_data( local_vars ).get('datas')[0]
-
             for x in range( len(remote_record_data) ):
                 if type( remote_record_data[x] ) == bool and remote_record_data[x] == False:
                     remote_record_data[x] = ''
@@ -293,27 +309,26 @@ class OdooMigration(models.Model):
                     local_record_data[x] = local_record_data[x][0:-1]
             
             if remote_record_data == local_record_data:
-                #_logging.info(f'DEF288 Iguales: { remote_record_data[0] }')
+                _logging.info(f'    Iguales: { remote_record_data[0] }')
                 continue
             else:
                 pass
-            _logging.info(f"DEF300 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
+            _logging.info(f"DEF316 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
             records_data_to_load.append( remote_record_data  )
             continue
-        _logging( f"DEF303 Registros Nuevos o Diferentes: {0}".format( len(records_data_to_load) ))
+        _logging.info( f"Registros Nuevos o Diferentes: {len(records_data_to_load)}\n===========")
         return records_data_to_load
 
 
-    def remove_messages_from_records( load_model, records_id ):
-        STOP310
-        records_id = env['mail.message'].search([
+    def remove_messages_from_records( self, load_model, records_id ):
+        records_id = self.env['mail.message'].search([
                         ('res_id','in', records_id),
                         ('model', '=', load_model)
                     ])
-        #_logging( "  DEF162 messages records_id: {0}".format( records_id )  )
         return records_id.sudo().unlink()
 
     def value_format_change( self, records_to_load, local_vars  ):           #Validation: Remove Value False or Bool before LOAD Data 
+        STOP334
         for index_record, record in enumerate(records_to_load):
             #_logging( "  DEF169 Record: {0}".format( records_to_load[ index_record  ] )  )
     
@@ -351,4 +366,9 @@ class OdooMigration(models.Model):
   
         return records_to_load
 
-
+    def bool_to_string(self, array_in):
+        for record in range(len(array_in)):
+            for item in range( len(array_in[record]) ):
+                if type(array_in[record][item]) == bool:
+                    array_in[record][item] = str( array_in[record][item] )
+        return array_in
