@@ -212,14 +212,12 @@ class OdooMigration(models.Model):
         return self._make_request( url, payload1 )
 
     def load_records_data(self, load_model, local_vars, load_data  ):
-        _logging.info("load_records_data ==== Qty: {0}".format( len(load_data) )  )
-        _logging.info( "    DEF216 DATA: {0}".format(  load_data)[0:300] )
+        _logging.info("loading_records_data ==== Qty: {0}\n".format( len(load_data) )  )
         result_dict = {'ids': [], 'errors': [] }
         result = self.env[ load_model  ].sudo().load(    #!!! BUG: Se tiene que crear previo como company
                     local_vars,
                     load_data
                 )
-        _logging.info( f"DEF223 result: {result}")
 
         if result.get('ids') == False:    #Errors Condition
             msg = "  DEF221 Error: Result: {0}\n\nvars: {1}\nData {2}".format(result, local_vars, load_data)
@@ -231,45 +229,6 @@ class OdooMigration(models.Model):
 
         #_logging( "  DEF228 result_dict: {0}".format(result_dict)[0:200] )
 
-        '''
-        for record_data in load_data:
-            #_logging( "  DEF98 record_data: {0}".format(  record_data[0]  )  )
-
-            record_id = self.env.ref( record_data[0], raise_if_not_found=False   )
-            #_logging("DEF102 Record_id Existente: {0}".format(record_id  ))
-            record_new = False
-            if record_id == None:
-                #_logging("DEF104 Creando record temporal")
-                record_new = True
-                result = self.env[ load_model  ].sudo().load(    #!!! BUG: Se tiene que crear previo como company
-                            local_vars,
-                            [a[0], 'NombreTemporal',  'company']],
-                        )
-                #_logging( "  DEF112 result temporal name: {0}".format(  result  )  )
-                record_id_int = result.get('ids')                                       #GET TEMPO RECORD IDs
-                record_id = self.env[ load_model  ].sudo().browse( record_id_int )
-            else:
-                pass
-            _logging.info(f"DEF231 recor_data: { record_data}") 
-            STOP232
-            result = record_id.sudo().load(
-                        local_vars,
-                        [ record_data ],
-                    )
-            #_logging( "  DEF113 result DEBE SER EL MISMO RECORD ID: {0}".format(  result  )  )
-    
-
-            if result.get('ids') == False:    #Errors Condition
-                msg = "  DEF123 Error: Result: {0}\n\nvars: {1}\nData {2}".format(result, local_vars, record_data)
-                result_dict['errors'].append( [ msg ]  )
-                #_logging( msg )
-                #_logging( "  DEF126 Eliminando registro temporal: {0}".format(  record_id  )  )
-                if record_new == True:
-                    record_id.sudo().unlink()
-            elif result.get('ids') != False:  #OK Condition
-                result_dict['ids'].append( result.get('ids')[0]  )
-        #_logging( "  DEF128 result_dict: {0}".format(result_dict)[0:200] )
-        '''
         return result_dict
 
     def get_data_to_load(self, data_array, local_vars, max_records_to_load  ): #1660494696
