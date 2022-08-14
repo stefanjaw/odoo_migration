@@ -276,7 +276,6 @@ class OdooMigration(models.Model):
             else:
                 pass
             _logging.info(f"DEF276 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
-            STOP277
             records_data_to_load.append( remote_record_data  )
             continue
         _logging.info( f"Registros Nuevos o Diferentes: {len(records_data_to_load)}\n===========")
