@@ -221,10 +221,10 @@ class OdooMigration(models.Model):
                 )
 
         if result.get('ids') == False:    #Errors Condition
-            msg = "  DEF221 Error: Result: {0}\n\nvars: {1}\nData {2}".format(result, local_vars, load_data)
+            _logging.info("  DEF224 loading_records Vars\n:{0} Data: \n{1}\n\n".format( local_vars, load_data )  )
+            msg = "  Error Result: {0}\n\nvars: {1}\n\nData {2}".format(result, local_vars, load_data)
             result_dict['errors'].append( [ msg ]  )
-            _logging.info( f"DEF223 Error Result: {msg[0:200]}" )
-            #_logging( "  DEF126 Eliminando registro temporal: {0}".format(  record_id  )  )
+            _logging.info( f"DEF223 Error Result: {msg[0:3000]}" )
         elif result.get('ids') != False:  #OK Condition
             result_dict['ids'].append( result.get('ids')[0]  )
 
@@ -236,7 +236,9 @@ class OdooMigration(models.Model):
         _logging.info(f"get_data_to_load======== { len(data_array) }" )
 
         records_data_to_load = []
+        iguales_counter = 0
         for remote_record_data in data_array:               
+            _logging.info(f"  DEF241======== ANTES remote_record_data: \n{ remote_record_data }" )
             if len( records_data_to_load  ) >= max_records_to_load:
                 break
 
@@ -271,14 +273,16 @@ class OdooMigration(models.Model):
                     local_record_data[x] = local_record_data[x][0:-1]
             
             if remote_record_data == local_record_data:
-                _logging.info(f'    Iguales: { remote_record_data[0] }')
+                iguales_counter += 1
+                if iguales_counter % 100 == 0:
+                    _logging.info(f'    Iguales: { iguales_counter }')
                 continue
             else:
                 pass
             _logging.info(f"DEF276 diferentes==================\n{remote_record_data}\n\n{local_record_data}\n")
             records_data_to_load.append( remote_record_data  )
             continue
-        _logging.info( f"Registros Nuevos o Diferentes: {len(records_data_to_load)}\n===========")
+        _logging.info( f"Registros Iguales: {iguales_counter} - Nuevos o Diferentes: {len(records_data_to_load)}\n===========")
         return records_data_to_load
 
 
@@ -328,9 +332,19 @@ class OdooMigration(models.Model):
   
         return records_to_load
 
-    def bool_to_string(self, array_in):
-        for record in range(len(array_in)):
-            for item in range( len(array_in[record]) ):
-                if type(array_in[record][item]) == bool:
-                    array_in[record][item] = str( array_in[record][item] )
-        return array_in
+    def vars_value_replace(self, array_vars, array_data, var_name, value_in, value_out ):
+        try:
+            var_pos = array_vars.index( var_name,  )
+        except:
+            _logging.info(f'    ERROR:var {var_name} not found in {array_vars}')
+            return []
+        
+        for record in range(len(array_data)):
+            if len( array_vars ) != len( array_data[record] ):
+                _logging.info('  Error: Cantidad de elementos diferentes en vars: {array_vars}\n{array_data[record]}')
+                return
+            value = array_data[record][var_pos]
+            if value == value_in:
+                array_data[record][var_pos] = value_out
+        return array_data
+
