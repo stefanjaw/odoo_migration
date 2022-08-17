@@ -190,6 +190,25 @@ class OdooMigration(models.Model):
         }
         return self._make_request( url, payload1 )
 
+    def get_records_count(self, url, db, login_id, pwd, query_model, search_filter, sort):
+        _logging.info("get_records_id=================")
+        payload1 = {
+            "jsonrpc": "2.0",
+            "method": "call",
+            "params": {
+                "service": "object",
+                "method": "execute",
+                "args": [
+                    db, login_id, pwd,
+                    query_model,
+                    'search_count',
+                    search_filter,
+                ],
+            },
+            "id": self.random_int(),
+        }
+        return self._make_request( url, payload1 )
+
     def get_records_data(self, url, db, login_id, pwd, query_model, ids_array, vars_array):
         _logging.info("get_records_data=======")
         # remote data: ids_array, vars_array
@@ -219,7 +238,6 @@ class OdooMigration(models.Model):
                     local_vars,
                     load_data
                 )
-
         if result.get('ids') == False:    #Errors Condition
             _logging.info("  DEF224 loading_records Vars\n:{0} Data: \n{1}\n\n".format( local_vars, load_data )  )
             msg = "  Error Result: {0}\n\nvars: {1}\n\nData {2}".format(result, local_vars, load_data)
@@ -233,12 +251,11 @@ class OdooMigration(models.Model):
         return result_dict
 
     def get_data_to_load(self, data_array, local_vars, max_records_to_load  ): #1660494696
-        _logging.info(f"get_data_to_load======== { len(data_array) }" )
+        _logging.info(f"get_data_to_load========Qty: { len(data_array) }" )
 
         records_data_to_load = []
         iguales_counter = 0
         for remote_record_data in data_array:               
-            _logging.info(f"  DEF241======== ANTES remote_record_data: \n{ remote_record_data }" )
             if len( records_data_to_load  ) >= max_records_to_load:
                 break
 
@@ -331,6 +348,13 @@ class OdooMigration(models.Model):
                 #_logging( "  DEF182 Record2: {0}".format( records_to_load[ index_record  ] )  )
   
         return records_to_load
+
+    def bool_to_string(self, array_in):
+        for record in range(len(array_in)):
+            for item in range( len(array_in[record]) ):
+                if type(array_in[record][item]) == bool:
+                    array_in[record][item] = str( array_in[record][item] )
+        return array_in
 
     def vars_value_replace(self, array_vars, array_data, var_name, value_in, value_out ):
         try:
