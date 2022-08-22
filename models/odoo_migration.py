@@ -190,8 +190,8 @@ class OdooMigration(models.Model):
         }
         return self._make_request( url, payload1 )
 
-    def get_records_count(self, url, db, login_id, pwd, query_model, search_filter ):
-        _logging.info("get_records_count=================")
+    def get_records_count(self, url, db, login_id, pwd, query_model, search_filter, sort):
+        _logging.info("get_records_id=================")
         payload1 = {
             "jsonrpc": "2.0",
             "method": "call",
