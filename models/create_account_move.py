@@ -52,7 +52,8 @@ class OdooMigration(models.Model):
         _logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
 
         remote_move_header_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move', remote_move_ints, remote_vars ) 
-        _logging.info(f"  DEF55 {remote_move_header_data}\n")
+        lines_int_array = self.get_line_ints_array( 'invoice_line_ids.id', remote_vars, remote_move_header_data.get('datas')  )
+        _logging.info(f"  DEF55 {lines_int_array}\n")
 
         xml_ids_to_create = set()
         for record in remote_move_header_data.get('datas'):
@@ -74,16 +75,15 @@ class OdooMigration(models.Model):
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create = account_move_temp.get('not_found')
             _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
-            STOP74
-            header_data = local_move_header_data.get('record_array')
-            _logging.info(f"DEF68 { account_move_json }")
-            line_ids_int = account_move_json.get('invoice_line_ids')
-            account_move_json.pop( 'invoice_line_ids' )
-            #move_type_pos = remote_vars.index('move_type')
-            _logging.info(f"DEF69 account_move_json: {account_move_json:}")
-            move_id = self.env['account.move'].sudo().create( account_move_json )
-            _logging.info(f"DEF65 move_id: {move_id}"  )
+            remote_invoice_line_data = self.get_records_data(
+                    remote_url, remote_db, login_id, remote_pwd,
+                    'account.move.line',
+                    lines_int_array,
+                    remote_line_vars )
+            _logging.info(f"DEF85 {remote_invoice_line_data} ")
 
+            STOP74
+            #Create External ID account_move
             external_id_data = {
                     'name': record[0].split('.')[1],
                     'module': record[0].split('.')[0],
@@ -149,6 +149,11 @@ class OdooMigration(models.Model):
                 except:
                     not_found.add( record_json[var_name] )
                     new_json[ var_name[:-3] ] = False
+            elif var_name[-3:] == "/id" == False:
+                new_json[ var_name[-3:] ] = record_json[var_name]
+            else:
+                new_json[ var_name ] = record_json[var_name]
+
         return {'record_json': new_json,
                 'not_found': not_found,
                }
@@ -162,3 +167,11 @@ class OdooMigration(models.Model):
             _logging.info(f"DEF123 output_json: {output_json}")
 
         return output_json
+
+    def get_line_ints_array( self, var_name ,vars_array, records_array ):
+        var_pos = vars_array.index( var_name )
+
+        new_array = []
+        for record in records_array:
+            new_array.append( int( record[var_pos] )  )
+        return new_array
