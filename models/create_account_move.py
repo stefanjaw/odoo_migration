@@ -57,8 +57,36 @@ class OdooMigration(models.Model):
         xml_ids_to_create = set()
         for record in remote_move_header_data.get('datas'):
             _logging.info(f"DEF59 {record}\n")
+            try:
+                if self.env.ref( record[0] ):
+                    _logging.info(f"  Ya Existe ID: { self.env.ref( record[0] ) } con External ID: {record[0]} ")
+                    continue
+            except:
+                pass
+            move_type_pos = remote_vars.index('move_type')
+            if record[ move_type_pos ] == "Customer Invoice":
+                record[ move_type_pos ] = "out_invoice"
+            
             local_move_header_data = self.convert_external_id_to_local( remote_vars, record )
             header_data = local_move_header_data.get('record_array')
+            account_move_json = self.convert_array_to_json(remote_vars,header_data)
+            _logging.info(f"DEF68 { account_move_json }")
+            line_ids_int = account_move_json.get('invoice_line_ids')
+            account_move_json.pop( 'invoice_line_ids' )
+            #move_type_pos = remote_vars.index('move_type')
+            _logging.info(f"DEF69 account_move_json: {account_move_json:}")
+            move_id = self.env['account.move'].sudo().create( account_move_json )
+            _logging.info(f"DEF65 move_id: {move_id}"  )
+
+            external_id_data = {
+                    'name': record[0].split('.')[1],
+                    'module': record[0].split('.')[0],
+                    'model': remote_model,
+                    'res_id': move_id.id
+                }
+            self.env['ir.model.data'].create( external_id_data )
+            return
+            STOP64
             xml_ids_to_create = local_move_header_data.get('xml_id_to_create')
             _logging.info(f"DEF60 \nheader_data: {header_data} xml_ids_to_create: {xml_ids_to_create}")
             lines_ids_pos = remote_vars.index('invoice_line_ids.id')
@@ -98,21 +126,28 @@ class OdooMigration(models.Model):
                     **{ 'user_id': activity_type_id.default_user_id.id,
                         'activity_type_id': activity_type_id.id }
                 )
-        STOP100
         return
+
+    def text_replace(self, text_in, text_out, record_array):
+        for value in record_array:
+            value.replace( text_in, text_out )
+        return record_array
 
     def convert_external_id_to_local(self, vars_array, record_array):
         xml_id_to_create = set()
         for pos in range(1, len(vars_array)):
             if vars_array[pos][-3:] == "/id" and record_array[pos] != False:
                 try:
-                    record_array[pos] = self.env.ref( "aaaa" + record_array[pos] ).id
+                    record_array[pos] = self.env.ref( record_array[pos] ).id
                     vars_array[pos] = vars_array[pos][0:-3]
                 except:
                     xml_id_to_create.add( record_array[pos] )
                     record_array[pos] = False
                     vars_array[pos] = vars_array[pos][0:-3]
-        
+            elif record_array[pos] == False:
+                vars_array[pos] = vars_array[pos][0:-3]
+            if vars_array[pos][-3:] == ".id":
+                vars_array[pos] = vars_array[pos][0:-3]
         return {'record_array': record_array,
                 'xml_id_to_create': xml_id_to_create,
                }
