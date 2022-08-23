@@ -73,7 +73,7 @@ class OdooMigration(models.Model):
             _logging.info(f"DEF73 { account_move_temp }")
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create = account_move_temp.get('not_found')
-            _logging.info(f"DEF76 { account_move_json } \n\n{xml_ids_to_create}")
+            _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
             STOP74
             header_data = local_move_header_data.get('record_array')
             _logging.info(f"DEF68 { account_move_json }")
@@ -141,14 +141,15 @@ class OdooMigration(models.Model):
 
     def convert_external_id_to_local(self, vars_array, record_json):
         not_found = set()
+        new_json = {}
         for var_name in record_json:
             if var_name[-3:] == "/id" and record_json[var_name] != False:
                 try:
-                    record_json[var_name] = self.env.ref( record_json[var_name] ).id
+                    new_json[ var_name[:-3] ] = self.env.ref( record_json[var_name] ).id
                 except:
                     not_found.add( record_json[var_name] )
-                    record_json[var_name] = False
-        return {'record_json': record_json,
+                    new_json[ var_name[:-3] ] = False
+        return {'record_json': new_json,
                 'not_found': not_found,
                }
 
