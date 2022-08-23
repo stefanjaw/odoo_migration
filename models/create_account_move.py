@@ -67,9 +67,15 @@ class OdooMigration(models.Model):
             if record[ move_type_pos ] == "Customer Invoice":
                 record[ move_type_pos ] = "out_invoice"
             
-            local_move_header_data = self.convert_external_id_to_local( remote_vars, record )
+            account_move_json = self.convert_array_to_json(remote_vars, record)
+            _logging.info(f"DEF71 { account_move_json }")
+            account_move_temp = self.convert_external_id_to_local( remote_vars, account_move_json)
+            _logging.info(f"DEF73 { account_move_temp }")
+            account_move_json = account_move_temp.get('record_json')
+            xml_ids_to_create = account_move_temp.get('not_found')
+            _logging.info(f"DEF76 { account_move_json } \n\n{xml_ids_to_create}")
+            STOP74
             header_data = local_move_header_data.get('record_array')
-            account_move_json = self.convert_array_to_json(remote_vars,header_data)
             _logging.info(f"DEF68 { account_move_json }")
             line_ids_int = account_move_json.get('invoice_line_ids')
             account_move_json.pop( 'invoice_line_ids' )
@@ -133,23 +139,17 @@ class OdooMigration(models.Model):
             value.replace( text_in, text_out )
         return record_array
 
-    def convert_external_id_to_local(self, vars_array, record_array):
-        xml_id_to_create = set()
-        for pos in range(1, len(vars_array)):
-            if vars_array[pos][-3:] == "/id" and record_array[pos] != False:
+    def convert_external_id_to_local(self, vars_array, record_json):
+        not_found = set()
+        for var_name in record_json:
+            if var_name[-3:] == "/id" and record_json[var_name] != False:
                 try:
-                    record_array[pos] = self.env.ref( record_array[pos] ).id
-                    vars_array[pos] = vars_array[pos][0:-3]
+                    record_json[var_name] = self.env.ref( record_json[var_name] ).id
                 except:
-                    xml_id_to_create.add( record_array[pos] )
-                    record_array[pos] = False
-                    vars_array[pos] = vars_array[pos][0:-3]
-            elif record_array[pos] == False:
-                vars_array[pos] = vars_array[pos][0:-3]
-            if vars_array[pos][-3:] == ".id":
-                vars_array[pos] = vars_array[pos][0:-3]
-        return {'record_array': record_array,
-                'xml_id_to_create': xml_id_to_create,
+                    not_found.add( record_json[var_name] )
+                    record_json[var_name] = False
+        return {'record_json': record_json,
+                'not_found': not_found,
                }
 
     def convert_array_to_json(self, vars_array, record_array):
