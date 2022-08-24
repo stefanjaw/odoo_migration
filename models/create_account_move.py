@@ -75,13 +75,21 @@ class OdooMigration(models.Model):
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create = account_move_temp.get('not_found')
             _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
-            continue
-            remote_invoice_line_data = self.get_records_data(
+            line_ids = account_move_json.get('invoice_line_ids.id')
+
+            for x in range(0,len(line_ids)): line_ids[x] = int( line_ids[x] )
+            _logging.info(f"DEF80 {line_ids}")
+
+            lines_data = self.get_records_data(
                     remote_url, remote_db, login_id, remote_pwd,
                     'account.move.line',
-                    lines_int_array,
+                    line_ids,
                     remote_line_vars )
-            _logging.info(f"DEF85 {remote_invoice_line_data} ")
+
+            _logging.info(f"DEF89 {lines_data} ")
+            lines_json_temp = self.convert_array_to_json( remote_line_vars, lines_data.get('datas') )
+            _logging.info(f"DEF91 {lines_json_temp} ")
+            continue
 
             STOP74
             #Create External ID account_move
