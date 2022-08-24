@@ -33,7 +33,7 @@ class OdooMigration(models.Model):
         if remote_model == False:
             _logging.info(f"Error: Model Not Found\n================================")
             return False
-        _logging.info(f"DEF21 params: {move_ext_id} {remote_filter} {order} {limit} {company_int}")
+        _logging.info(f"===INICIO=== DEF21 params: {move_ext_id} {remote_filter} {order} {limit} {company_int}\n\n")
 
         company_id = self.env['res.company'].browse( company_int )
 
@@ -49,32 +49,33 @@ class OdooMigration(models.Model):
 
         #Contar los registros para obtener el offset
         remote_move_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
-        _logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
+        #_logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
 
         remote_move_header_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move', remote_move_ints, remote_vars ) 
-        lines_int_array = self.get_line_ints_array( 'invoice_line_ids.id', remote_vars, remote_move_header_data.get('datas')  )
-        _logging.info(f"  DEF55 {lines_int_array}\n")
+        _logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
 
+        list_var = 'invoice_line_ids.id'
+        remote_account_move_json_list = self.data_array_to_data_json( list_var, remote_vars, remote_move_header_data.get('datas') )
+        _logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
         xml_ids_to_create = set()
-        for record in remote_move_header_data.get('datas'):
-            _logging.info(f"DEF59 {record}\n")
+        for record in remote_account_move_json_list:
+            _logging.info(f"DEF62 Record : {record}\n")
             try:
-                if self.env.ref( record[0] ):
+                if self.env.ref( record['id'] ):
                     _logging.info(f"  Ya Existe ID: { self.env.ref( record[0] ) } con External ID: {record[0]} ")
                     continue
             except:
                 pass
-            move_type_pos = remote_vars.index('move_type')
-            if record[ move_type_pos ] == "Customer Invoice":
-                record[ move_type_pos ] = "out_invoice"
+
+            if record[ 'move_type' ] == "Customer Invoice":
+                record[ 'move_type' ] = "out_invoice"
             
-            account_move_json = self.convert_array_to_json(remote_vars, record)
-            _logging.info(f"DEF71 { account_move_json }")
-            account_move_temp = self.convert_external_id_to_local( remote_vars, account_move_json)
+            account_move_temp = self.convert_external_id_to_local( remote_vars, record )
             _logging.info(f"DEF73 { account_move_temp }")
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create = account_move_temp.get('not_found')
             _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
+            continue
             remote_invoice_line_data = self.get_records_data(
                     remote_url, remote_db, login_id, remote_pwd,
                     'account.move.line',
@@ -149,8 +150,8 @@ class OdooMigration(models.Model):
                 except:
                     not_found.add( record_json[var_name] )
                     new_json[ var_name[:-3] ] = False
-            elif var_name[-3:] == "/id" == False:
-                new_json[ var_name[-3:] ] = record_json[var_name]
+            elif var_name[-3:] == "/id" and record_json[var_name] ==  False:
+                new_json[ var_name[:-3] ] = record_json[var_name]
             else:
                 new_json[ var_name ] = record_json[var_name]
 
@@ -159,6 +160,7 @@ class OdooMigration(models.Model):
                }
 
     def convert_array_to_json(self, vars_array, record_array):
+        STOP163
         _logging.info(f"DEF120 {record_array}")
         output_json = {}
         for pos in range(0, len(vars_array)):
@@ -175,3 +177,40 @@ class OdooMigration(models.Model):
         for record in records_array:
             new_array.append( int( record[var_pos] )  )
         return new_array
+
+    def data_array_to_data_json( self, list_var, vars_array, data_array ): #1661306266
+        list_var_pos = vars_array.index( list_var )
+        output_array = []
+        
+        for record_pos in range(0, len(data_array) ):   #1661306266_a
+        
+            if data_array[record_pos][0] != '':
+                new_json = {}
+                sub_list = []
+                create_json = True
+            else:
+                create_json = False
+                
+            for var_pos in range(0, len(vars_array) ):  #1661306266_b
+                if var_pos == list_var_pos:             #1661306266_b1
+                    sub_list.append( data_array[record_pos][var_pos] )
+                    value = sub_list
+                elif create_json == True:               #1661306266_b2
+                    value = data_array[record_pos][var_pos]            
+                elif create_json == False:              #1661306266_b3
+                    continue
+                else:                                   #1661306266_b4
+                    continue
+                
+                new_json[ vars_array[var_pos] ] = value
+            
+            try:                                        #1661306266_c1
+                if data_array[record_pos+1][0] == '':
+                    continue
+            except:                                     #1661306266_c2
+                output_array.append( new_json )
+            
+            if record_pos != len(data_array) -1 :       #1661306266_d1
+                output_array.append( new_json )
+        return output_array
+
