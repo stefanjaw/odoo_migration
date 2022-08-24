@@ -52,11 +52,11 @@ class OdooMigration(models.Model):
         #_logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
 
         remote_move_header_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move', remote_move_ints, remote_vars ) 
-        _logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
+        #_logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
 
         list_var = 'invoice_line_ids.id'
         remote_account_move_json_list = self.data_array_to_data_json( list_var, remote_vars, remote_move_header_data.get('datas') )
-        _logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
+        #_logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
         xml_ids_to_create = set()
         for record in remote_account_move_json_list:
             _logging.info(f"DEF62 Record : {record}\n")
@@ -71,14 +71,31 @@ class OdooMigration(models.Model):
                 record[ 'move_type' ] = "out_invoice"
             
             account_move_temp = self.convert_external_id_to_local( remote_vars, record )
-            _logging.info(f"DEF73 { account_move_temp }")
+            #_logging.info(f"DEF73 { account_move_temp }")
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create = account_move_temp.get('not_found')
             _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
             line_ids = account_move_json.get('invoice_line_ids.id')
 
-            for x in range(0,len(line_ids)): line_ids[x] = int( line_ids[x] )
-            _logging.info(f"DEF80 {line_ids}")
+
+            if line_ids in [ [False], []  ]:
+                lines_data = []
+                pass
+            else:
+                for x in range(0,len(line_ids)): line_ids[x] = int( line_ids[x] )
+                _logging.info(f"DEF86 {line_ids}")
+                STOP87
+                lines_data = self.get_records_data(
+                    remote_url, remote_db, login_id, remote_pwd,
+                    'account.move.line',
+                    line_ids,
+                    remote_line_vars )
+
+            new_line_ids = []
+            for x in range(0,len(line_ids)):
+                if line_ids[x] == False: continue 
+                else: line_ids[x] = new_line_ids.append(  int( line_ids[x] )  )
+            _logging.info(f"DEF80 {new_line_ids}")
 
             lines_data = self.get_records_data(
                     remote_url, remote_db, login_id, remote_pwd,
