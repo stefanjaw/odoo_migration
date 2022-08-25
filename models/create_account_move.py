@@ -57,9 +57,9 @@ class OdooMigration(models.Model):
         list_var = 'invoice_line_ids.id'
         remote_account_move_json_list = self.data_array_to_data_json( list_var, remote_vars, remote_move_header_data.get('datas') )
         #_logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
-        xml_ids_to_create = set()
         for record in remote_account_move_json_list:
             _logging.info(f"DEF62 Record : {record}\n")
+            xml_ids_to_create = set()
             try:
                 if self.env.ref( record['id'] ):
                     _logging.info(f"  Ya Existe ID: { self.env.ref( record[0] ) } con External ID: {record[0]} ")
@@ -73,39 +73,44 @@ class OdooMigration(models.Model):
             account_move_temp = self.convert_external_id_to_local( remote_vars, record )
             #_logging.info(f"DEF73 { account_move_temp }")
             account_move_json = account_move_temp.get('record_json')
-            xml_ids_to_create = account_move_temp.get('not_found')
+            xml_ids_to_create.update( account_move_temp.get('not_found') )
             _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
             line_ids = account_move_json.get('invoice_line_ids.id')
 
-
+            _logging.info(f"DEF80 before line_ids {line_ids}")
             if line_ids in [ [False], []  ]:
                 lines_data = []
                 pass
             else:
                 for x in range(0,len(line_ids)): line_ids[x] = int( line_ids[x] )
                 _logging.info(f"DEF86 {line_ids}")
-                STOP87
+
                 lines_data = self.get_records_data(
                     remote_url, remote_db, login_id, remote_pwd,
                     'account.move.line',
                     line_ids,
                     remote_line_vars )
 
-            new_line_ids = []
-            for x in range(0,len(line_ids)):
-                if line_ids[x] == False: continue 
-                else: line_ids[x] = new_line_ids.append(  int( line_ids[x] )  )
-            _logging.info(f"DEF80 {new_line_ids}")
+            _logging.info(f"DEF94 {lines_data}\n\n")
+            if len( lines_data ) > 0:
+                lines_json = self.data_array_to_data_json( 'no_variable_defined_yet', remote_line_vars, lines_data.get('datas') )
+            else: lines_json = [] 
+            _logging.info(f"DEF99 {lines_json} ")
+           
+            invoice_line_ids_json = []
+            for line_json in lines_json:
+                #_logging.info(f"DEF102 line_json: {line_json}")
+                line_temp  = self.convert_external_id_to_local( remote_line_vars, line_json )
+                #_logging.info(f"DEF104 line_json: {line_temp}")
+                line_json = line_temp.get('record_json')
+                #_logging.info(f"DEF106 line_json: {line_json} xml_to_create: { len( line_temp.get('not_found')) }")
+                if len( line_temp.get('not_found') ) >0:
+                    xml_ids_to_create.update( line_temp.get('not_found') )
+                #_logging.info(f"DEF111 xml_ids_to_create: {xml_ids_to_create}")
+                #continue 
 
-            lines_data = self.get_records_data(
-                    remote_url, remote_db, login_id, remote_pwd,
-                    'account.move.line',
-                    line_ids,
-                    remote_line_vars )
-
-            _logging.info(f"DEF89 {lines_data} ")
-            lines_json_temp = self.convert_array_to_json( remote_line_vars, lines_data.get('datas') )
-            _logging.info(f"DEF91 {lines_json_temp} ")
+            account_move_json[ 'invoice_line_ids' ] = lines_json
+            _logging.info(f"DEF113 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
             continue
 
             STOP74
@@ -120,28 +125,28 @@ class OdooMigration(models.Model):
             return
             STOP64
             xml_ids_to_create = local_move_header_data.get('xml_id_to_create')
-            _logging.info(f"DEF60 \nheader_data: {header_data} xml_ids_to_create: {xml_ids_to_create}")
+            _logging.info(f"DEF124 \nheader_data: {header_data} xml_ids_to_create: {xml_ids_to_create}")
             lines_ids_pos = remote_vars.index('invoice_line_ids.id')
-            _logging.info(f"DEF65 lines_ids_pos: {lines_ids_pos}")
+            _logging.info(f"DEF126 lines_ids_pos: {lines_ids_pos}")
             line_ints = record[lines_ids_pos]
             if type( line_ints ) == str: line_ints = [ int(line_ints) ]
-            _logging.info(f"DEF68 {type(line_ints)}")
-            _logging.info(f"DEF69 {line_ints}")
+            _logging.info(f"DEF129 {type(line_ints)}")
+            _logging.info(f"DEF130 {line_ints}")
             remote_move_lines_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move.line', line_ints, remote_line_vars )
-            _logging.info(f"DEF71 {remote_move_lines_data}")
+            _logging.info(f"DEF132 {remote_move_lines_data}")
             lines_dict = []
             for line_data in remote_move_lines_data.get('datas'):
                 local_move_lines_data = self.convert_external_id_to_local( remote_line_vars, line_data )
-                _logging.info(f"DEF73 {local_move_lines_data}")
+                _logging.info(f"DEF136 {local_move_lines_data}")
                 line_data = local_move_lines_data.get( 'record_array' )
                 xml_ids_to_create.update( local_move_lines_data.get('xml_id_to_create') )
                 line_json = self.convert_array_to_json(remote_line_vars, line_data)
                 lines_dict.append( line_json   )
-            _logging.info( f"DEF80 line_json: {lines_dict}"  )
+            _logging.info( f"DEF141 line_json: {lines_dict}"  )
             STOP81
-            _logging.info(f"DEF81 remote_move_lines_data: {remote_move_lines_data}")
-            _logging.info(f"DEF82 xml_ids_to_create: {xml_ids_to_create}")
-            _logging.info(f"DEF83 len(xml_ids_to_create: {len(xml_ids_to_create)}")
+            _logging.info(f"DEF143 remote_move_lines_data: {remote_move_lines_data}")
+            _logging.info(f"DEF144 xml_ids_to_create: {xml_ids_to_create}")
+            _logging.info(f"DEF145 len(xml_ids_to_create: {len(xml_ids_to_create)}")
             if len(xml_ids_to_create) > 0:
                 move_id = self.env['account.move'].create({
                             'move_type': 'entry',
@@ -158,6 +163,7 @@ class OdooMigration(models.Model):
                     **{ 'user_id': activity_type_id.default_user_id.id,
                         'activity_type_id': activity_type_id.id }
                 )
+            _logging.info(f"DEF166 xml_ids_to_create: {xml_ids_to_create}")
         return
 
     def text_replace(self, text_in, text_out, record_array):
@@ -204,7 +210,10 @@ class OdooMigration(models.Model):
         return new_array
 
     def data_array_to_data_json( self, list_var, vars_array, data_array ): #1661306266
-        list_var_pos = vars_array.index( list_var )
+        try:
+            list_var_pos = vars_array.index( list_var )
+        except:
+            list_var_pos = 100000
         output_array = []
         
         for record_pos in range(0, len(data_array) ):   #1661306266_a
