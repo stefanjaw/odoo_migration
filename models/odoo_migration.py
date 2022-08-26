@@ -47,11 +47,11 @@ class OdooMigration(models.Model):
             )
         except (ValueError, requests.exceptions.ConnectionError, requests.exceptions.MissingSchema, requests.exceptions.Timeout, requests.exceptions.HTTPError):
             msg = ('The url that this service requested returned an error. The url it tried to contact was %s', url)
-            _logging.info("  DEF33 Error: %s", msg)
+            _logging.info("  DEF50 ==> Error: %s %s", msg)
             return  msg
         #_logging.info("35=== %s", response.get("error"))
         if 'error' in response.json():
-            _logging.info(f"  DEF54 Error: {response.json()}")
+            _logging.info(f"  DEF54 ==> Error: {response.json()}")
             message = _('The url that this service requested returned an error. The url it tried to contact was %s. %s', url, response.json()['error']['message'])
             if response.json()['error']['code'] == 404:
                 _logging.info("  DEF40 Error:")
@@ -233,6 +233,7 @@ class OdooMigration(models.Model):
 
     def load_records_data(self, load_model, local_vars, load_data  ):
         _logging.info("loading_records_data ==== Qty: {0}\n".format( len(load_data) )  )
+        
         result_dict = {'ids': [], 'errors': [] }
         result = self.env[ load_model  ].sudo().load(    #!!! BUG: Se tiene que crear previo como company
                     local_vars,
