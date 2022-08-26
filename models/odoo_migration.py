@@ -240,14 +240,11 @@ class OdooMigration(models.Model):
                     load_data
                 )
         if result.get('ids') == False:    #Errors Condition
-            _logging.info("  DEF224 loading_records Vars\n:{0} Data: \n{1}\n\n".format( local_vars, load_data )  )
             msg = "  Error Result: {0}\n\nvars: {1}\n\nData {2}".format(result, local_vars, load_data)
             result_dict['errors'].append( [ msg ]  )
-            _logging.info( f"DEF223 Error Result: {msg[0:3000]}" )
+            _logging.info( f"DEF245 Error Result: {msg[0:3000]}" )
         elif result.get('ids') != False:  #OK Condition
-            result_dict['ids'].append( result.get('ids')[0]  )
-
-        #_logging( "  DEF228 result_dict: {0}".format(result_dict)[0:200] )
+            result_dict['ids'].append( result.get('ids')  )
 
         return result_dict
 

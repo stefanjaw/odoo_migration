@@ -17,7 +17,7 @@ _logging = logging.getLogger(__name__)
 class OdooMigration(models.Model):
     _inherit = 'odoo_migration'
     
-    def create_ir_attachment(self, params={}):
+    def create_res_partner_emails_extra(self, params={}):
         remote_filter = params.get('remote_filter') or []
         order = params.get('order') or False
         limit = int( params.get('limit') ) or 1000
@@ -48,5 +48,6 @@ class OdooMigration(models.Model):
 
         records_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
         remote_records_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, remote_model, records_ints, remote_vars )
-        records_loaded = self.load_records_data(local_model, local_vars, remote_records_data.get('datas'))
+        remote_records_data = self.bool_to_string(remote_records_data.get('datas'))
+        records_loaded = self.load_records_data(local_model, local_vars, remote_records_data )
         return records_loaded
