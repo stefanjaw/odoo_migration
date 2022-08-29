@@ -47,8 +47,6 @@ class OdooMigration(models.Model):
         _logging.info(f"  Login ID: {login_id}" )
 
         records_total = self.get_records_count(remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter)
-        _logging.info(f"DEF49 records_total: {records_total}")
-
 
         records_loaded = []
         for a in range(0, round( records_total / limit ) + 1 ):
@@ -64,12 +62,6 @@ class OdooMigration(models.Model):
                     local_record_ids = self.env.ref( record[0] )
                 except:
                     local_record_ids = []
-
-                #if len( local_record_ids ) == 1:
-                #    local_record_data = local_record_ids[0].export_data( local_vars )
-                #    if [ record ] == local_record_data.get('datas'):
-                #        continue
-                #_logging.info(f"DEF74 record: {record}")
 
                 var_pos = remote_vars.index('code')
                 record[ var_pos ] = f'codigo="{record[ var_pos ]}"'
