@@ -28,7 +28,6 @@ class OdooMigration(models.Model):
         remote_model = params.get('remote_model') or False
         local_model = params.get('local_model') or False
         offset = params.get('offset') or 0
-        _logging.info(f"DEF31 {offset} ")
 
         if remote_model == False:
             _logging.info(f"Error: Model Not Found\n================================")
@@ -47,7 +46,35 @@ class OdooMigration(models.Model):
         _logging.info(f"  Login ID: {login_id}" )
 
         records_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
+        total_records = len( records_ints )
+        _logging.info(f"DEF50 total_records: {total_records}")
         remote_records_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, remote_model, records_ints, remote_vars )
-        remote_records_data = self.bool_to_string(remote_records_data.get('datas'))
-        records_loaded = self.load_records_data(local_model, local_vars, remote_records_data )
+        #_logging.info(f"DEF50 remote_records_data: { remote_records_data }" )
+
+        records_loaded = []
+        _logging.info(f"DEF55 total_records: {total_records}")
+        for a in range(0, round( total_records / limit ) + 1 ):
+            offset = a * limit
+            _logging.info(f"DEF55 a: {a} offset: {offset} limit: {limit}")
+        STOP56
+
+
+        for record in remote_records_data.get('datas'):
+            #_logging.info(f"DEF53 record: {record}")
+            try:
+                local_record_ids = self.env.ref( record[0] )
+            except:
+                local_record_ids = []
+
+            if len( local_record_ids ) == 1:
+                local_record_data = local_record_ids[0].export_data( local_vars ) 
+                if [ record ] == local_record_data.get('datas'):
+                    continue
+            _logging.info(f"DEF64 LOADING: { record }\n")
+            remote_records_data = self.bool_to_string( [ record ] )
+            output = self.load_records_data(local_model, local_vars, remote_records_data )
+            records_loaded.append( output )
+            _logging.info(f"DEF68 records_loaded result: { output }\n")
+            _logging.info(f"DEF69 records_loaded result: { output.get('errors') }\n")
+        _logging.info("END======== create_res_partner_emails_extra ")
         return records_loaded
