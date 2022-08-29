@@ -56,10 +56,8 @@ class OdooMigration(models.Model):
             _logging.info(f"    offset: {offset} limit: {limit}")
 
             records_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
-            _logging.info(f"DEF59 records_ints: {records_ints}")
 
             remote_records_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, remote_model, records_ints, remote_vars )
-            _logging.info(f"DEF62 remote_records_data: {remote_records_data}")
 
             for record in remote_records_data.get('datas'):
                 try:
@@ -67,11 +65,11 @@ class OdooMigration(models.Model):
                 except:
                     local_record_ids = []
 
-                if len( local_record_ids ) == 1:
-                    local_record_data = local_record_ids[0].export_data( local_vars )
-                    if [ record ] == local_record_data.get('datas'):
-                        continue
-                _logging.info(f"DEF74 record: {record}")
+                #if len( local_record_ids ) == 1:
+                #    local_record_data = local_record_ids[0].export_data( local_vars )
+                #    if [ record ] == local_record_data.get('datas'):
+                #        continue
+                #_logging.info(f"DEF74 record: {record}")
 
                 var_pos = remote_vars.index('code')
                 record[ var_pos ] = f'codigo="{record[ var_pos ]}"'
@@ -79,17 +77,22 @@ class OdooMigration(models.Model):
                 #Esta modificación tiene que ir de último, se está haciendo un pop
                 var_pos = remote_vars.index('content_label')
                 var_pos_1 =  remote_vars.index('content')
-                #SE UNE CON field_HELP ==> var_pos_3 = local_vars.index('field_help')
+                #SE UNE CON field_HELP
 
                 record[ var_pos ] = record[ var_pos ] + " : " + record[ var_pos_1 ]
                 record.pop( var_pos_1 )
 
+                if len( local_record_ids ) == 1:
+                    var_pos = remote_vars.index('element')
+                    if record[var_pos] == "OtroTexto":
+                        record[var_pos] = "Otro Texto"
+
+                    local_record_data = local_record_ids[0].export_data( local_vars )
+                    if [ record ] == local_record_data.get('datas'):
+                        continue
                 remote_records_data = self.bool_to_string( [ record ] )
-                _logging.info(f"DEF88 local_vars: {local_vars}\n\nremote_records_data: {remote_records_data}\n\n")
-                _logging.info(f"DEF88 LEN local_vars: {len(local_vars)} LEN remote_records_data: {len(remote_records_data[0])}")
 
                 output = self.load_records_data(local_model, local_vars, remote_records_data )
-                _logging.info(f"DEF91 output: \n{ output }\n")
                 records_loaded.append( output )
                 _logging.info(f"DEF73 records_loaded ERRORS: \n{ output.get('errors') }\n")
         _logging.info("END======== create_res_partner_otros_line ")
