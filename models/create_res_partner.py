@@ -82,7 +82,7 @@ class OdooMigration(models.Model):
                 record = self.vars_value_replace( remote_vars, [record], 'category_id/id', False, '' )[0]
 
                 remote_records_data = self.bool_to_string( [ record ] )
-                _logging.info(f"DEF85 LOADING remote_records_data: {remote_records_data}")
+                _logging.info(f"DEF85 LOADING remote_records_data: \n{remote_records_data}")
                 output = self.load_records_data(local_model, local_vars, remote_records_data )
                 records_loaded.append( output )
                 _logging.info(f"DEF88 LOADING RESULT: \n{ output }\n")
