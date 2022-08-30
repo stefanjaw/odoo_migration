@@ -80,7 +80,6 @@ class OdooMigration(models.Model):
                 
                 #Cambiando variables
                 record = self.vars_value_replace( remote_vars, [record], 'category_id/id', False, '' )[0]
-                _logging.info(f"DEF82 record: {record}")
 
                 remote_records_data = self.bool_to_string( [ record ] )
                 _logging.info(f"DEF85 LOADING remote_records_data: {remote_records_data}")
