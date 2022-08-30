@@ -68,6 +68,7 @@ class OdooMigration(models.Model):
                 if len( local_record_ids ) == 1:
                     record = self.vars_value_replace( remote_vars, [record], 'parent_id/id', False, '' )[0]
                     record = self.vars_value_replace( remote_vars, [record], 'company_id/id', False, '' )[0]
+                    record = self.vars_value_replace( remote_vars, [record], 'category_id/id', False, '' )[0]
 
                     local_record_data = local_record_ids[0].with_context( {'lang': 'en_US'}   ).export_data( local_vars )#.with_context( {'lang': 'en_US'}   )
                     #_logging.info(f"DEF75 COMPARANDO:==============\n\n{local_vars}\n\n{[record]}\n\n{local_record_data.get('datas')}\n")
