@@ -17,7 +17,7 @@ _logging = logging.getLogger(__name__)
 class OdooMigration(models.Model):
     _inherit = 'odoo_migration'
 
-    def create_res_partner(self, params={}):
+    def create_ir_exports(self, params={}):
         _logging.info(f"DEF21 params: \n{params}")
         remote_filter = params.get('remote_filter') or []
         order = params.get('order') or False
@@ -54,11 +54,10 @@ class OdooMigration(models.Model):
             _logging.info(f"    offset: {offset} limit: {limit}")
 
             records_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
-            #_logging.info(f"DEF57 records_ints: {records_ints}")
+            _logging.info(f"DEF57 records_ints: {records_ints}")
 
             remote_records_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, remote_model, records_ints, remote_vars )
-            #_logging.info(f"DEF60 remote_records_data: {remote_records_data}")
-
+            _logging.info(f"DEF60 remote_records_data: {remote_records_data}")
             for record in remote_records_data.get('datas'):
                 try:
                     local_record_ids = self.env.ref( record[0] )
@@ -66,10 +65,6 @@ class OdooMigration(models.Model):
                     local_record_ids = []
 
                 if len( local_record_ids ) == 1:
-                    record = self.vars_value_replace( remote_vars, [record], 'parent_id/id', False, '' )[0]
-                    record = self.vars_value_replace( remote_vars, [record], 'company_id/id', False, '' )[0]
-                    record = self.vars_value_replace( remote_vars, [record], 'category_id/id', False, '' )[0]
-
                     local_record_data = local_record_ids[0].with_context( {'lang': 'en_US'}   ).export_data( local_vars )#.with_context( {'lang': 'en_US'}   )
                     #_logging.info(f"DEF75 COMPARANDO:==============\n\n{local_vars}\n\n{[record]}\n\n{local_record_data.get('datas')}\n")
                     if [ record ] == local_record_data.get('datas'):
@@ -79,18 +74,15 @@ class OdooMigration(models.Model):
                         _logging.info(f"DEF79 COMPARANDO:==============\n\n{local_vars}\n\n{[record]}\n\n{local_record_data.get('datas')}\n")
                 
                 #Cambiando variables
-                record = self.vars_value_replace( remote_vars, [record], 'category_id/id', False, '' )[0]
 
                 remote_records_data = self.bool_to_string( [ record ] )
                 _logging.info(f"DEF85 LOADING remote_records_data: \n{remote_records_data}")
                 output = self.load_records_data(local_model, local_vars, remote_records_data )
                 records_loaded.append( output )
                 _logging.info(f"DEF88 LOADING RESULT: \n{ output }\n")
-
                 if len(records_loaded) >= max_records_to_load:
                     _logging.info("END======== create_res_partner MAX RECORDS END ")
                     return
-        _logging.info("END======== create_res_partner END ")
+        _logging.info("END======== create_ir_exports END ")
         return records_loaded
 
-        STOP222
