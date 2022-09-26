@@ -16,8 +16,9 @@ _logging = logging.getLogger(__name__)
 
 class OdooMigration(models.Model):
     _inherit = 'odoo_migration'
+
     
-    def create_account_move(self, params={}):
+    def create_account_move(self, params={}):   # 1663729248
         move_ext_id = params.get('move_ext_id') or False
         remote_filter = params.get('remote_filter') or []
         order = params.get('order') or False
@@ -33,7 +34,8 @@ class OdooMigration(models.Model):
         if remote_model == False:
             _logging.info(f"Error: Model Not Found\n================================")
             return False
-        _logging.info(f"===INICIO=== DEF21 params: {move_ext_id} {remote_filter} {order} {limit} {company_int}\n\n")
+        _logging.info(f"===INICIO=== DEF21 params:  \n move_ext_id: {move_ext_id}\n remote_filter: {remote_filter} \
+                                                    \n order: {order}\n limit: {limit}\n company_int: {company_int}\n\n")
 
         company_id = self.env['res.company'].browse( company_int )
 
@@ -49,15 +51,15 @@ class OdooMigration(models.Model):
 
         #Contar los registros para obtener el offset
         remote_move_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
-        #_logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
+        _logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
 
         remote_move_header_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move', remote_move_ints, remote_vars ) 
-        #_logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
+        _logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
 
-        list_var = 'invoice_line_ids.id'
+        list_var = 'invoice_line_ids/id'
         remote_account_move_json_list = self.data_array_to_data_json( list_var, remote_vars, remote_move_header_data.get('datas') )
-        #_logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
-        for record in remote_account_move_json_list:
+        _logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
+        for record in remote_account_move_json_list:  # 1663729248_10
             _logging.info(f"DEF62 Record : {record}\n")
             xml_ids_to_create = set()
             try:
@@ -71,10 +73,11 @@ class OdooMigration(models.Model):
                 record[ 'move_type' ] = "out_invoice"
             
             account_move_temp = self.convert_external_id_to_local( remote_vars, record )
-            #_logging.info(f"DEF73 { account_move_temp }")
+            _logging.info(f"DEF73 { account_move_temp }")
+            STOP77
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create.update( account_move_temp.get('not_found') )
-            _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
+            _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n xml_ids_to_create: {xml_ids_to_create}\n\n")
             line_ids = account_move_json.get('invoice_line_ids.id')
 
             _logging.info(f"DEF80 before line_ids {line_ids}")
@@ -171,21 +174,30 @@ class OdooMigration(models.Model):
             value.replace( text_in, text_out )
         return record_array
 
-    def convert_external_id_to_local(self, vars_array, record_json):
-        not_found = set()
+    def convert_external_id_to_local(self, vars_array, record_json): # 1661214870 1663729574
+        not_found = [] #set()
         new_json = {}
         for var_name in record_json:
-            if var_name[-3:] == "/id" and record_json[var_name] != False:
+            #_logging.info(f"DEF181 var_name: {var_name} => {record_json[var_name]} {type( record_json[var_name] )}")
+            if var_name == "invoice_line_ids/id":
+                #_logging.info(f"DEF183====")
+                new_json[ var_name ] = record_json[var_name]
+            elif var_name[-3:] == "/id" and record_json[var_name] != False:
+                #_logging.info(f"DEF186====")
                 try:
                     new_json[ var_name[:-3] ] = self.env.ref( record_json[var_name] ).id
                 except:
+                    #_logging.info(f"DEF190 passsss")
                     not_found.add( record_json[var_name] )
                     new_json[ var_name[:-3] ] = False
             elif var_name[-3:] == "/id" and record_json[var_name] ==  False:
+                #_logging.info(f"DEF195 =====")
                 new_json[ var_name[:-3] ] = record_json[var_name]
             else:
+                #_logging.info(f"DEF198 =======")
                 new_json[ var_name ] = record_json[var_name]
-
+        
+        #_logging.info(f"DEF201 new_json: {new_json} not_found: {not_found}")
         return {'record_json': new_json,
                 'not_found': not_found,
                }
