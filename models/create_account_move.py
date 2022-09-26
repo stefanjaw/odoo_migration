@@ -87,8 +87,15 @@ class OdooMigration(models.Model):
 
             _logging.info(f"DEF85 remote_line_ints: { remote_line_ints }" )
             
-            account_move_line_lst = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move.line', remote_line_ints , remote_line_vars )
-            _logging.info(f"DEF88 account_move_line_lst: { account_move_line_lst }" )
+            remote_move_lines_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move.line', remote_line_ints , remote_line_vars )
+            _logging.info(f"DEF88 remote_move_lines_data: { remote_move_lines_data }" )
+
+            list_var = 'NO_HAY_LINEAS_EN_ZERO'
+            move_lines_json = self.data_array_to_data_json( list_var, remote_line_vars, remote_move_lines_data.get('datas') )
+
+            _logging.info(f"DEF96 move_lines_json: { move_lines_json: }" )
+
+
 
             STOP89
             account_move_json = account_move_temp.get('record_json')
@@ -237,8 +244,8 @@ class OdooMigration(models.Model):
             new_array.append( int( record[var_pos] )  )
         return new_array
 
-    def data_array_to_data_json( self, list_var, vars_array, data_array ): #1661306266
-        #_logging.info(f"DEF237 data_array: { data_array }")
+    def data_array_to_data_json( self, list_var, vars_array, data_array ): # 1661306266
+        _logging.info(f"DEF237 data_array: { data_array }")
         try:
             list_var_pos = vars_array.index( list_var )
         except:
@@ -246,14 +253,16 @@ class OdooMigration(models.Model):
         output_array = []
         
         for record_pos in range(0, len(data_array) ):   #1661306266_a
-        
+            _logging.info(f"DEF256 record_pos: { record_pos }"  ) 
             if data_array[record_pos][0] != '':
                 new_json = {}
                 sub_list = []
                 create_json = True
             else:
                 create_json = False
-                
+
+            _logging.info(f"DEF263 ") 
+
             for var_pos in range(0, len(vars_array) ):  #1661306266_b
                 if var_pos == list_var_pos:             #1661306266_b1
                     sub_list.append( data_array[record_pos][var_pos] )
@@ -275,6 +284,6 @@ class OdooMigration(models.Model):
             
             if record_pos != len(data_array) -1 :       #1661306266_d1
                 output_array.append( new_json )
-        #_logging.info(f"DEF273 output_array: { output_array }")
+        _logging.info(f"DEF273 output_array: { output_array }")
         return output_array
 
