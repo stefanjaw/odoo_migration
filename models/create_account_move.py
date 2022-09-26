@@ -56,11 +56,11 @@ class OdooMigration(models.Model):
         remote_move_header_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move', remote_move_ints, remote_vars ) 
         _logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
 
-        list_var = 'invoice_line_ids/id'
+        list_var = 'invoice_line_ids.id'
         remote_account_move_json_list = self.data_array_to_data_json( list_var, remote_vars, remote_move_header_data.get('datas') )
         _logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
         for record in remote_account_move_json_list:  # 1663729248_10
-            _logging.info(f"DEF62 Record : {record}\n")
+            _logging.info(f"DEF62 account_move Record : {record}\n")
             xml_ids_to_create = set()
             try:
                 if self.env.ref( record['id'] ):
@@ -71,10 +71,26 @@ class OdooMigration(models.Model):
 
             if record[ 'move_type' ] == "Customer Invoice":
                 record[ 'move_type' ] = "out_invoice"
+
+            _logging.info(f"DEF75 ==========") 
+            account_move_json = self.convert_external_id_to_local( remote_vars, record )
+            _logging.info(f"DEF76 account_move_json: { account_move_json }")
+            _logging.info(f"DEF76 account_move_json.get( 'invoice_line_ids.id' ): { account_move_json.get('record_json').get( 'invoice_line_ids.id' ) }")
+
+            try:
+                remote_line_ints = account_move_json.get('record_json').get( 'invoice_line_ids.id' )
+            except:
+                remote_line_ints = False
+
+            for x in range(0, len(remote_line_ints) ):
+                remote_line_ints[x] = int( remote_line_ints[x] )
+
+            _logging.info(f"DEF85 remote_line_ints: { remote_line_ints }" )
             
-            account_move_temp = self.convert_external_id_to_local( remote_vars, record )
-            _logging.info(f"DEF73 { account_move_temp }")
-            STOP77
+            account_move_line_lst = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move.line', remote_line_ints , remote_line_vars )
+            _logging.info(f"DEF88 account_move_line_lst: { account_move_line_lst }" )
+
+            STOP89
             account_move_json = account_move_temp.get('record_json')
             xml_ids_to_create.update( account_move_temp.get('not_found') )
             _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n xml_ids_to_create: {xml_ids_to_create}\n\n")
@@ -179,7 +195,7 @@ class OdooMigration(models.Model):
         new_json = {}
         for var_name in record_json:
             #_logging.info(f"DEF181 var_name: {var_name} => {record_json[var_name]} {type( record_json[var_name] )}")
-            if var_name == "invoice_line_ids/id":
+            if var_name == "invoice_line_ids.id":
                 #_logging.info(f"DEF183====")
                 new_json[ var_name ] = record_json[var_name]
             elif var_name[-3:] == "/id" and record_json[var_name] != False:
@@ -187,7 +203,7 @@ class OdooMigration(models.Model):
                 try:
                     new_json[ var_name[:-3] ] = self.env.ref( record_json[var_name] ).id
                 except:
-                    #_logging.info(f"DEF190 passsss")
+                    #_logging.info(f"Error: HAY UN EXCEPT ====== ")
                     not_found.add( record_json[var_name] )
                     new_json[ var_name[:-3] ] = False
             elif var_name[-3:] == "/id" and record_json[var_name] ==  False:
@@ -222,6 +238,7 @@ class OdooMigration(models.Model):
         return new_array
 
     def data_array_to_data_json( self, list_var, vars_array, data_array ): #1661306266
+        #_logging.info(f"DEF237 data_array: { data_array }")
         try:
             list_var_pos = vars_array.index( list_var )
         except:
@@ -258,5 +275,6 @@ class OdooMigration(models.Model):
             
             if record_pos != len(data_array) -1 :       #1661306266_d1
                 output_array.append( new_json )
+        #_logging.info(f"DEF273 output_array: { output_array }")
         return output_array
 
