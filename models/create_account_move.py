@@ -51,14 +51,18 @@ class OdooMigration(models.Model):
 
         #Contar los registros para obtener el offset
         remote_move_ints = self.get_records_id( remote_url, remote_db, login_id, remote_pwd, remote_model, remote_filter, offset, limit, order )
-        _logging.info(f"  DEF48 remote_move_ints: {remote_move_ints}")
+        _logging.info(f"  DEF54 remote_move_ints: {remote_move_ints}")
 
         remote_move_header_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move', remote_move_ints, remote_vars ) 
-        _logging.info(f"  DEF55 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
+        _logging.info(f"  DEF57 \nvars: {remote_vars} \nremote_move_header_data: {remote_move_header_data}\n\n")
 
         list_var = 'invoice_line_ids.id'
         remote_account_move_json_list = self.data_array_to_data_json( list_var, remote_vars, remote_move_header_data.get('datas') )
-        _logging.info(f"  DEF59 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
+        _logging.info(f"  DEF61 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
+
+        remote_account_move_json_list = self.change_variables( remote_account_move_json_list )
+        _logging.info(f"  DEF64 \nremote_account_move_json_list: {remote_account_move_json_list}\n\n")
+
         for record in remote_account_move_json_list:  # 1663729248_10
             _logging.info(f"DEF62 account_move Record : {record}\n")
             xml_ids_to_create = set()
@@ -72,124 +76,90 @@ class OdooMigration(models.Model):
             if record[ 'move_type' ] == "Customer Invoice":
                 record[ 'move_type' ] = "out_invoice"
 
-            _logging.info(f"DEF75 ==========") 
-            account_move_json = self.convert_external_id_to_local( remote_vars, record )
-            _logging.info(f"DEF76 account_move_json: { account_move_json }")
-            _logging.info(f"DEF76 account_move_json.get( 'invoice_line_ids.id' ): { account_move_json.get('record_json').get( 'invoice_line_ids.id' ) }")
+            _logging.info(f"DEF75 ========== Convert Ext Id to Local") 
+            account_move_json_result = self.convert_external_id_to_local( remote_vars, record )
+            _logging.info(f"DEF77 Local account_move_json_result: { account_move_json_result }")
+            
+            account_move_json = account_move_json_result.get('record_json')
+            _logging.info(f"DEF80 account_move_json: { account_move_json }")
+
+            xml_ids_to_create.update( account_move_json_result.get('not_found') )
+            _logging.info(f"DEF87 xml_ids_to_create: {xml_ids_to_create}" )
+
+            #Set Partner Account Payable
+            currency_int = account_move_json.get('currency_id')
+            #_logging.info(f"DEF90 currency_int: { currency_int }")
+            currency_name = self.env['res.currency'].browse( currency_int ).name
+            #_logging.info(f"DEF92 currency_name: { currency_name }")
+            if currency_name == "USD":
+                account_id = self.env['account.account'].search([
+                    ('code', '=', '113002') # USD
+                ])
+            else: #currency_name == "CRC":
+                account_id = self.env['account.account'].search([
+                    ('code', '=', '113001') # CRC
+                ])
+            partner_int = account_move_json.get('partner_id')
+            partner_id = self.env['res.partner'].browse( partner_int )
+            partner_id.write({ 'property_account_receivable_id': account_id.id  })
 
             try:
-                remote_line_ints = account_move_json.get('record_json').get( 'invoice_line_ids.id' )
+                remote_line_ints = account_move_json.get( 'invoice_line_ids' )
             except:
                 remote_line_ints = False
 
             for x in range(0, len(remote_line_ints) ):
                 remote_line_ints[x] = int( remote_line_ints[x] )
 
-            _logging.info(f"DEF85 remote_line_ints: { remote_line_ints }" )
+            #_logging.info(f"DEF97 remote_line_ints: { remote_line_ints }" )
             
             remote_move_lines_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move.line', remote_line_ints , remote_line_vars )
-            _logging.info(f"DEF88 remote_move_lines_data: { remote_move_lines_data }" )
+            #_logging.info(f"DEF88 remote_move_lines_data: { remote_move_lines_data }" )
 
             list_var = 'NO_HAY_LINEAS_EN_ZERO'
             move_lines_json = self.data_array_to_data_json( list_var, remote_line_vars, remote_move_lines_data.get('datas') )
+            _logging.info(f"DEF104 move_lines_json: { move_lines_json }\n\n" )
 
-            _logging.info(f"DEF96 move_lines_json: { move_lines_json: }" )
+            local_move_lines = []
+            for move_line in move_lines_json:
+                #_logging.info( f"DEF99 move_line: { move_line }" )
+                move_line_local_data = self.convert_external_id_to_local( remote_line_vars, move_line )
+                #_logging.info(f"DEF110 move_line_local_data: { move_line_local_data }" )
 
+                try:
+                    if move_line_local_data.get('record_json').get('tax_ids') != False \
+                            and type(move_line_local_data.get('record_json').get('tax_ids')) != list:
+                        
+                        move_line_local_data['record_json']['tax_ids'] = [ move_line_local_data.get('record_json').get('tax_ids') ] 
+                except:
+                    pass
 
+                #_logging.info(f"DEF115 move_line_local_data: { move_line_local_data }" )
+                local_move_lines.append( move_line_local_data.get('record_json') )
+                #_logging.info(f"DEF104 local_move_lines: { local_move_lines }" )
+                xml_ids_to_create.update( move_line_local_data.get('not_found') )
 
-            STOP89
-            account_move_json = account_move_temp.get('record_json')
-            xml_ids_to_create.update( account_move_temp.get('not_found') )
-            _logging.info(f"DEF76 { json.dumps(account_move_json, indent=4) } \n xml_ids_to_create: {xml_ids_to_create}\n\n")
-            line_ids = account_move_json.get('invoice_line_ids.id')
+                #_logging.info(f"DEF118 tax_ids: {type(move_line.get('tax_ids'))} {move_line.get('tax_ids')}")
 
-            _logging.info(f"DEF80 before line_ids {line_ids}")
-            if line_ids in [ [False], []  ]:
-                lines_data = []
-                pass
-            else:
-                for x in range(0,len(line_ids)): line_ids[x] = int( line_ids[x] )
-                _logging.info(f"DEF86 {line_ids}")
+                #_logging.info( f"DEF115 local_move_lines: { local_move_lines }\n\n" )
 
-                lines_data = self.get_records_data(
-                    remote_url, remote_db, login_id, remote_pwd,
-                    'account.move.line',
-                    line_ids,
-                    remote_line_vars )
+            _logging.info(f"DEF122 account_move_json: { account_move_json }\
+                    \n\nlocal_move_lines: { local_move_lines }\n\n xml_ids_to_create: { xml_ids_to_create }  " )
+            account_move_json['invoice_line_ids'] = local_move_lines
 
-            _logging.info(f"DEF94 {lines_data}\n\n")
-            if len( lines_data ) > 0:
-                lines_json = self.data_array_to_data_json( 'no_variable_defined_yet', remote_line_vars, lines_data.get('datas') )
-            else: lines_json = [] 
-            _logging.info(f"DEF99 {lines_json} ")
-           
-            invoice_line_ids_json = []
-            for line_json in lines_json:
-                #_logging.info(f"DEF102 line_json: {line_json}")
-                line_temp  = self.convert_external_id_to_local( remote_line_vars, line_json )
-                #_logging.info(f"DEF104 line_json: {line_temp}")
-                line_json = line_temp.get('record_json')
-                #_logging.info(f"DEF106 line_json: {line_json} xml_to_create: { len( line_temp.get('not_found')) }")
-                if len( line_temp.get('not_found') ) >0:
-                    xml_ids_to_create.update( line_temp.get('not_found') )
-                #_logging.info(f"DEF111 xml_ids_to_create: {xml_ids_to_create}")
-                #continue 
+            _logging.info(f"DEF133 account_move_json: { account_move_json }")
 
-            account_move_json[ 'invoice_line_ids' ] = lines_json
-            _logging.info(f"DEF113 { json.dumps(account_move_json, indent=4) } \n\n{xml_ids_to_create}")
-            continue
-
-            STOP74
+            move_id = self.env['account.move'].create( account_move_json )
+            _logging.info(f"DEF136 move_id: { move_id}")
+            
             #Create External ID account_move
             external_id_data = {
-                    'name': record[0].split('.')[1],
-                    'module': record[0].split('.')[0],
+                    'name': record.get('id').split('.')[1],  # [0].split('.')[1],
+                    'module': record.get('id').split('.')[0], # [0].split('.')[0],
                     'model': remote_model,
                     'res_id': move_id.id
                 }
             self.env['ir.model.data'].create( external_id_data )
-            return
-            STOP64
-            xml_ids_to_create = local_move_header_data.get('xml_id_to_create')
-            _logging.info(f"DEF124 \nheader_data: {header_data} xml_ids_to_create: {xml_ids_to_create}")
-            lines_ids_pos = remote_vars.index('invoice_line_ids.id')
-            _logging.info(f"DEF126 lines_ids_pos: {lines_ids_pos}")
-            line_ints = record[lines_ids_pos]
-            if type( line_ints ) == str: line_ints = [ int(line_ints) ]
-            _logging.info(f"DEF129 {type(line_ints)}")
-            _logging.info(f"DEF130 {line_ints}")
-            remote_move_lines_data = self.get_records_data( remote_url, remote_db, login_id, remote_pwd, 'account.move.line', line_ints, remote_line_vars )
-            _logging.info(f"DEF132 {remote_move_lines_data}")
-            lines_dict = []
-            for line_data in remote_move_lines_data.get('datas'):
-                local_move_lines_data = self.convert_external_id_to_local( remote_line_vars, line_data )
-                _logging.info(f"DEF136 {local_move_lines_data}")
-                line_data = local_move_lines_data.get( 'record_array' )
-                xml_ids_to_create.update( local_move_lines_data.get('xml_id_to_create') )
-                line_json = self.convert_array_to_json(remote_line_vars, line_data)
-                lines_dict.append( line_json   )
-            _logging.info( f"DEF141 line_json: {lines_dict}"  )
-            STOP81
-            _logging.info(f"DEF143 remote_move_lines_data: {remote_move_lines_data}")
-            _logging.info(f"DEF144 xml_ids_to_create: {xml_ids_to_create}")
-            _logging.info(f"DEF145 len(xml_ids_to_create: {len(xml_ids_to_create)}")
-            if len(xml_ids_to_create) > 0:
-                move_id = self.env['account.move'].create({
-                            'move_type': 'entry',
-                            'ref': "Error External IDs para: " + record[0],
-                        })
-                _logging.info(f"  DEF89 move_id: {move_id}")
-                move_id.button_cancel()
-
-                activity_type_id = self.env.ref('mail.mail_activity_data_todo')
-                summary = "Error: External IDs no encontrados para: " + record[0] 
-                note = "<b>External IDs:</b><br>{0}<br>".format( xml_ids_to_create )
-                move_id.activity_schedule(
-                    '', None, summary, note,
-                    **{ 'user_id': activity_type_id.default_user_id.id,
-                        'activity_type_id': activity_type_id.id }
-                )
-            _logging.info(f"DEF166 xml_ids_to_create: {xml_ids_to_create}")
         return
 
     def text_replace(self, text_in, text_out, record_array):
@@ -204,7 +174,7 @@ class OdooMigration(models.Model):
             #_logging.info(f"DEF181 var_name: {var_name} => {record_json[var_name]} {type( record_json[var_name] )}")
             if var_name == "invoice_line_ids.id":
                 #_logging.info(f"DEF183====")
-                new_json[ var_name ] = record_json[var_name]
+                new_json[ var_name[:-3] ] = record_json[var_name]
             elif var_name[-3:] == "/id" and record_json[var_name] != False:
                 #_logging.info(f"DEF186====")
                 try:
@@ -245,7 +215,7 @@ class OdooMigration(models.Model):
         return new_array
 
     def data_array_to_data_json( self, list_var, vars_array, data_array ): # 1661306266
-        _logging.info(f"DEF237 data_array: { data_array }")
+        #_logging.info(f"DEF237 data_array: { data_array }")
         try:
             list_var_pos = vars_array.index( list_var )
         except:
@@ -253,7 +223,7 @@ class OdooMigration(models.Model):
         output_array = []
         
         for record_pos in range(0, len(data_array) ):   #1661306266_a
-            _logging.info(f"DEF256 record_pos: { record_pos }"  ) 
+            #_logging.info(f"DEF256 record_pos: { record_pos }"  ) 
             if data_array[record_pos][0] != '':
                 new_json = {}
                 sub_list = []
@@ -261,7 +231,7 @@ class OdooMigration(models.Model):
             else:
                 create_json = False
 
-            _logging.info(f"DEF263 ") 
+            #_logging.info(f"DEF263 ") 
 
             for var_pos in range(0, len(vars_array) ):  #1661306266_b
                 if var_pos == list_var_pos:             #1661306266_b1
@@ -284,6 +254,15 @@ class OdooMigration(models.Model):
             
             if record_pos != len(data_array) -1 :       #1661306266_d1
                 output_array.append( new_json )
-        _logging.info(f"DEF273 output_array: { output_array }")
+        #_logging.info(f"DEF273 output_array: { output_array }")
         return output_array
 
+
+    def change_variables(self, json_lst):   # 1664318830
+        for record in json_lst:
+
+            if record.get('type_document_selection/code') == '09':
+                record.pop('type_document_selection/code')
+                record['move_type_extra'] = 'fee'
+
+        return json_lst
